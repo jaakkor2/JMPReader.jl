@@ -21,6 +21,8 @@ outputs
    3 │      3.0      33.3  c               2003-06-02T17:00:00  missing     229000 milliseconds   ccc              cccccccc                           6              2.6      jäääär     cc
    4 │      4.0      44.4  d               missing              2032-02-12  0 milliseconds        dddd             abcdefghijabcdefghijabcdefghijab…  8              4.6e113  辛口       abcdefghijkl
 ```
+
 ### See also
 
-* [SASLib.jl](https://github.com/tk3369/SASLib.jl) is a fast reader for sas7bdat files.
+* [SASLib.jl](https://github.com/tk3369/SASLib.jl) is a fast reader for sas7bdat files
+* [ReadStatTables.jl](https://github.com/junyuan-chen/ReadStatTables.jl) for reading and writing Stata, SAS and SPSS data files
