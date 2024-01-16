@@ -20,3 +20,27 @@ using Dates: Date, DateTime, Second
     @test df."char utf8" == ["ꙮꙮꙮ","🚴💨","jäääär","辛口"]
     @test df.charvariable8 == ["a","bb","cc","abcdefghijkl"]
 end
+
+@testset "compressed.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "compressed.jmp"))
+    @test all(df.numeric .== 1)
+    @test all(df.character1 .== "a")
+    @test all(df.character11 .== "abcdefghijk")
+    @test all(df.character130 .== "abcdefghij"^13)
+    @test all(df."y-m-d h:m:s" .== DateTime(1904,1,1,0,0,1))
+end
+
+@testset "date.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "date.jmp"))
+    @test df.ddmmyyyy == [Date(2011,5,25), Date(1973,5,24), Date(2027,5,22), Date(2020,5,1)]
+end
+
+@testset "duration.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "duration.jmp"))
+    @test df.":day:hr:m:s" == fill(Second(88201), 3)
+end
+
+@testset "time.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "time.jmp"))
+    @test Matrix(df) == repeat([DateTime(1914,4,27,19,54,14), DateTime(1978,1,7,6,11,24)], 1, 20)
+end
