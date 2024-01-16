@@ -4,6 +4,7 @@ export readjmp
 
 using Dates: unix2datetime, Date, DateTime
 using DataFrames: DataFrame
+using CodecZlib: transcode, GzipDecompressor
 
 struct Column
     names::Vector{String}
@@ -28,7 +29,9 @@ function readjmp(fn::AbstractString)
     isfile(fn) || (@error("File `$fn` does not exist`"); return nothing)
     a = read(fn)
     len = length(a)
+    len ≥ 8 && a[1:8] == [0xff,0xff,0x00,0x00,0x07,0x00,0x00,0x00] || (@error("Not a .jmp file?"); return nothing)
     len < 507 && (@error("File `$fn` length=$len.  Maybe truncated?"); return nothing)
+
     nrows = reinterpret(Int64, a[368 .+ (1:8)])[1]
     ncols = reinterpret(Int32, a[376 .+ (1:4)])[1]
     savetime = to_datetime(a[407:414])[1]
@@ -41,8 +44,10 @@ function readjmp(fn::AbstractString)
         offset_colinfo += 10 + unknown4
     elseif unknown1 == 5
         offset_colinfo += 324 + unknown4
+    elseif unknown1 == 15
+        offset_colinfo += 2941 + unknown4
     end
-    unknown1 in [3,4,5] || @warn("Never before seen unknown1=$unknown1.  unknown4=$unknown4.")
+    unknown1 in [3,4,5,15] || @warn("Never before seen unknown1=$unknown1.  unknown4=$unknown4.")
     
     ncols2 = reinterpret(Int32, a[offset_colinfo .+ (1:4)])[1]
     unknown5 = reinterpret(Int16, a[offset_colinfo + 14 .+ (1:2)])[1]
@@ -60,7 +65,6 @@ function readjmp(fn::AbstractString)
     colnames, coloffsets = column_info(a, coldata_offset, ncols)
     
     info = Info(savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
-
     alldata = [column_data(a, info, i) for i in 1:info.ncols]
     return DataFrame(alldata, info.column.names)
 end
@@ -79,6 +83,7 @@ Return data from `i`th column.
 function column_data(data, info, i::Int)
     1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
     raw = column_rawdata(data, info, i)
+    lenraw = length(raw)
     lenname = raw[1]
     dtype1 = raw[lenname + 2 .+ (1:2)]
     dtype2 = raw[lenname + 4 .+ (1:2)]
@@ -129,7 +134,7 @@ function column_data(data, info, i::Int)
     # Character, const width < 8
     if (dtype1 == [0x02, 0x02] && dtype2 in [[0x01, 0x00], [0x04, 0x00], [0x06, 0x00], [0x02, 0x00]]) ||
         (dtype1 == [0x02, 0x02] && dtype2 == [0x00, 0x00] && dtype3 > 0)
-        width = raw[lenname + 7]
+        width = dtype3
         io = IOBuffer(raw[end-info.nrows*width+1:end])
         str = [String(read(io, width)) for i in 1:info.nrows]
         str = rstrip.(str, '\0')
@@ -155,13 +160,65 @@ function column_data(data, info, i::Int)
         elseif widthbytes == 0x02 # Int16
             widths = reinterpret(Int16, raw[ofs + 41 .+ (1:2*info.nrows)])
         else
-            error("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere")
+            error("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i")
         end
         io = IOBuffer(raw[end-sum(widths)+1:end])
         str = [String(read(io, widths[i])) for i in 1:info.nrows]
         return str
     end
+
+    # Float64, compressed
+    if dtype1 == [0x0a, 0x00] && dtype2 in [[0x0c, 0x63]]
+        idx = findfirst([0x1f, 0x8b], raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        return reinterpret(Float64, decompressed)
+    end
+
+    # Character, compressed, const width < 8
+    if dtype1 == [0x09, 0x02] && (dtype2 in [[0x03, 0x00], [0x01, 0x00], [0x07, 0x00]] ||
+        (dtype2 == [0x00, 0x00] && dtype3 > 0) || (dtype2 == [0x04, 0x00] && dtype3 > 0) ||
+        (dtype2 == [0x05, 0x00] && dtype3 > 0))
+        idx = findfirst([0x1f, 0x8b], raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        width = dtype3
+        io = IOBuffer(decompressed)
+        str = [String(read(io, width)) for i in 1:info.nrows]
+        str = rstrip.(str, '\0')
+        str = String.(str) # SubString->String
+        return str
+    end
     
+    # Character, compressed, variable width
+    if dtype1 == [0x09, 0x02] && dtype2 == [0x00, 0x00] && dtype3 == 0
+        idx = findfirst([0x1f, 0x8b], raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        lendata = reinterpret(Int64, decompressed[1:8])[1]
+        length(decompressed) == lendata + 8 || error("Decompressed length mismatch, i=$i, column=$(info.column.names[i])")
+        widthbytes = decompressed[9]
+        if widthbytes == 1
+            widths = reinterpret(Int8, decompressed[13 .+ (1:info.nrows)])
+            io = IOBuffer(decompressed[13 + info.nrows + 1:end])
+        elseif widthbytes == 2
+            widths = reinterpret(Int16, decompressed[13 .+ (1:2*info.nrows)])
+            io = IOBuffer(decompressed[13 + 2*info.nrows + 1:end])
+        else
+            error("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i")
+        end
+        str = [String(read(io, widths[i])) for i in 1:info.nrows]
+        return str
+    end
+
+    # Time, compressed
+    if dtype1 == [0x0a, 0x00] && dtype2 in [[0x17, 0x6a], [0x16, 0x74], [0x16, 0x7e]]
+        idx = findfirst([0x1f, 0x8b], raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        return to_datetime(decompressed)
+    end
+
     @error("Data type combination `dtype1,dtype2,dtype3=$dtype1,$dtype2,$dtype3` not implemented, found in column `$(info.column.names[i])` (i=$i), returning raw data for debugging")
     return raw
 end
