@@ -6,19 +6,7 @@ using Dates: unix2datetime, Date, DateTime
 using DataFrames: DataFrame
 using CodecZlib: transcode, GzipDecompressor
 
-struct Column
-    names::Vector{String}
-    unknown::Vector{UInt16}
-    offsets::Vector{Int64}
-end
-
-struct Info
-    savetime::DateTime
-    nrows::Int
-    ncols::Int
-    column::Column
-end
-
+include("structs.jl")
 
 """
     function readjmp(fn::AbstractString)
@@ -35,19 +23,14 @@ function readjmp(fn::AbstractString)
     nrows = reinterpret(Int64, a[368 .+ (1:8)])[1]
     ncols = reinterpret(Int32, a[376 .+ (1:4)])[1]
     savetime = to_datetime(a[407:414])[1]
-    unknown1 = reinterpret(Int16, a[482:483])[1]  ## unknown parameter causing different offsets in columns data
-    unknown2 = reinterpret(Int32, a[484:487])[1]
-    unknown3 = reinterpret(Int16, a[492:493])[1]
-    unknown4 = reinterpret(Int16, a[494:495])[1]  ## unknown parameter causing different offsets in columns data
-    offset_colinfo = 503
-    if unknown1 == 4
-        offset_colinfo += 10 + unknown4
-    elseif unknown1 == 5
-        offset_colinfo += 324 + unknown4
-    elseif unknown1 == 15
-        offset_colinfo += 2941 + unknown4
-    end
-    unknown1 in [3,4,5,15] || @warn("Never before seen unknown1=$unknown1.  unknown4=$unknown4.")
+    buildnumber = reinterpret(Int16, a[412:413])[1]
+    buildmonth = String(a[421:423])
+    proversion = a[417] == 55
+
+    # brute-force find the offset to column data index
+    idx = findfirst(reinterpret(UInt8, Int32.(0:ncols-1)), a)
+    isnothing(idx) && error("Column index not found.")
+    offset_colinfo = idx[1] - 16 - 1
     
     ncols2 = reinterpret(Int32, a[offset_colinfo .+ (1:4)])[1]
     unknown5 = reinterpret(Int16, a[offset_colinfo + 14 .+ (1:2)])[1]
@@ -55,16 +38,15 @@ function readjmp(fn::AbstractString)
     colidxlist = reinterpret(Int32, a[offset_colinfo + 16 .+ (1:4*ncols)])
     colidxlist == 0:ncols-1 || @warn("`offset_colinfo`-variable probably has a wrong value")
     colformatting = reinterpret(UInt16, a[offset_colinfo + 16 + 4*ncols .+ (1:2*ncols)])
-    ###    @show a[offset_colinfo + 16 + 6*ncols+1 : offset_colinfo + 62 + 6*ncols-1]  # possible unknown bytes
     unknowns6 = Int.(a[offset_colinfo + 16 + 6*ncols .+ [31,39,41,43,47]])  # 47 is often equal to ncols, but not always
-    @debug unknown1, unknown2, unknown3, unknown4, unknown5, unknowns6
+    @debug unknown5, unknowns6
     coldata_offset = offset_colinfo + 16 + 6*ncols
 
     ncols == ncols2 || @error("Number of columns from two different locations do not match, $ncols vs $ncols2")
 
     colnames, coloffsets = column_info(a, coldata_offset, ncols)
     
-    info = Info(savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
+    info = Info(buildnumber, buildmonth, proversion, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
     alldata = [column_data(a, info, i) for i in 1:info.ncols]
     return DataFrame(alldata, info.column.names)
 end
@@ -94,7 +76,7 @@ function column_data(data, info, i::Int)
     # Float64
     if (dtype1 == [0x01, 0x00] && dtype2 in [[0x0c, 0x63], [0x0c, 0x43], [0x0d, 0x63], [0x0c, 0x03], [0x0c, 0x59], [0x0c, 0x60], [0x0c, 0x42], [0x0d, 0x42], [0x01, 0x00], [0x06, 0x42]]) ||
         (dtype1 == [0x01, 0x01] && dtype2 in [[0x0c, 0x63]]) ||
-        (dtype1 == [0x01, 0x02] && dtype2 in [[0x0c, 0x63]])
+        (dtype1 == [0x01, 0x02] && dtype2 in [[0x0c, 0x63], [0x09, 0x63]])
         out = reinterpret(Float64, raw[end-8*info.nrows+1:end])
         out = replace(out, NaN => missing)
         return out
@@ -132,7 +114,7 @@ function column_data(data, info, i::Int)
     end
 
     # Character, const width < 8
-    if (dtype1 == [0x02, 0x02] && dtype2 in [[0x01, 0x00], [0x04, 0x00], [0x06, 0x00], [0x02, 0x00]]) ||
+    if (dtype1 == [0x02, 0x02] && dtype2 in [[0x01, 0x00], [0x02, 0x00], [0x03, 0x00], [0x04, 0x00], [0x06, 0x00]]) ||
         (dtype1 == [0x02, 0x02] && dtype2 == [0x00, 0x00] && dtype3 > 0)
         width = dtype3
         io = IOBuffer(raw[end-info.nrows*width+1:end])
@@ -168,7 +150,8 @@ function column_data(data, info, i::Int)
     end
 
     # Float64, compressed
-    if dtype1 == [0x0a, 0x00] && dtype2 in [[0x0c, 0x63]]
+    if (dtype1 == [0x0a, 0x00] && dtype2 in [[0x0c, 0x63]]) ||
+        (dtype1 == [0x0a, 0x02] && dtype2 in [[0x0c, 0x63]])
         idx = findfirst([0x1f, 0x8b], raw)
         isnothing(idx) && error("Compressed stream not found")
         decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
@@ -176,9 +159,8 @@ function column_data(data, info, i::Int)
     end
 
     # Character, compressed, const width < 8
-    if dtype1 == [0x09, 0x02] && (dtype2 in [[0x03, 0x00], [0x01, 0x00], [0x07, 0x00]] ||
-        (dtype2 == [0x00, 0x00] && dtype3 > 0) || (dtype2 == [0x04, 0x00] && dtype3 > 0) ||
-        (dtype2 == [0x05, 0x00] && dtype3 > 0))
+    if dtype1 == [0x09, 0x02] && ((dtype2[2] == 0x00 && 0x01 ≤ dtype2[1] ≤ 0x07) ||
+        (dtype2 == [0x00, 0x00] && dtype3 > 0))
         idx = findfirst([0x1f, 0x8b], raw)
         isnothing(idx) && error("Compressed stream not found")
         decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
@@ -243,7 +225,7 @@ end
 Return column names and offsets to column data.
 """
 function column_info(data, offset, ncols)
-    hacky_offset = data[offset + 31] + 42
+    hacky_offset = data[offset + 31] + 42 # TODO needs improvement
     coloffsets = reinterpret(Int64, data[offset + hacky_offset .+ (1:8*ncols)])
     colnames = String[]
     for i in coloffsets
