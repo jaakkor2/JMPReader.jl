@@ -1,6 +1,7 @@
 using Test
 using JMPReader
 using Dates: Date, DateTime, Second
+using Printf: @sprintf
 
 @testset "example1.jmp" begin
     df = readjmp(joinpath(@__DIR__, "example1.jmp"))
@@ -15,7 +16,7 @@ using Dates: Date, DateTime, Second
     @test df.charconstwidth2 == ["a","bb","ccc","dddd"]
     @test df.charvariable16 == ["aa","bbbb","cccccccc","abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"]
     @test df.formula == ["2","4","6","8"]
-    @test df.pressures[[1,3,4]] == [101.325,2.6,4.6e113]
+    @test df.pressures[[1,3,4]] == [101.325,2.6,4.63309e110]
     @test ismissing(df.pressures[2])
     @test df."char utf8" == ["ꙮꙮꙮ","🚴💨","jäääär","辛口"]
     @test df.charvariable8 == ["a","bb","cc","abcdefghijkl"]
@@ -43,4 +44,12 @@ end
 @testset "time.jmp" begin
     df = readjmp(joinpath(@__DIR__, "time.jmp"))
     @test Matrix(df) == repeat([DateTime(1914,4,27,19,54,14), DateTime(1978,1,7,6,11,24)], 1, 20)
+end
+
+@testset "longcolumnnames.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "longcolumnnames.jmp"))
+    name1 = prod([@sprintf("%010d", i) for i in 1:140])
+    name2 = prod([@sprintf("%010d", i) for i in 1:280])
+    @test names(df) == [name1, name2]
+    @test Matrix(df) == [1 2; 1 2; 1 2]
 end

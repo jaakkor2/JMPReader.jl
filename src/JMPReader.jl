@@ -66,7 +66,7 @@ function column_data(data, info, i::Int)
     1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
     raw = column_rawdata(data, info, i)
     lenraw = length(raw)
-    lenname = raw[1]
+    lenname = reinterpret(Int16, raw[1:2])[1]
     dtype1 = raw[lenname + 2 .+ (1:2)]
     dtype2 = raw[lenname + 4 .+ (1:2)]
     dtype3 = raw[lenname + 7]
@@ -229,8 +229,7 @@ function column_info(data, offset, ncols)
     coloffsets = reinterpret(Int64, data[offset + hacky_offset .+ (1:8*ncols)])
     colnames = String[]
     for i in coloffsets
-        width = data[1+i]
-        data[2+i] == 0 || @info("Byte with previously unseen content $(data[2+i]) at $(2+i)")
+        width = reinterpret(Int16, data[1+i:2+i])[1]
         push!(colnames, String(data[2+i .+ (1:width)]))
     end
     return colnames, coloffsets
