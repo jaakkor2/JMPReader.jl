@@ -34,8 +34,7 @@ function column_info(data, offset, ncols)
     coloffsets = reinterpret(Int64, data[offset + hacky_offset .+ (1:8*ncols)])
     colnames = String[]
     for i in coloffsets
-        width = reinterpret(Int16, data[1+i:2+i])[1]
-        push!(colnames, String(data[2+i .+ (1:width)]))
+        push!(colnames, _read_string!(data, [i], 2))
     end
     return colnames, coloffsets
 end
