@@ -5,9 +5,8 @@ struct Column
 end
 
 struct Info
-    buildnumber::Int16
-    buildmonth::String
-    proversion::Bool
+    buildnumber::Int32
+    buildstring::String
     savetime::DateTime
     nrows::Int64
     ncols::Int32

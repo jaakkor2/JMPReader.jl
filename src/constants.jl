@@ -1,0 +1,4 @@
+const magic = [0xff, 0xff, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00]
+const offset_nrows = 368
+const offset_ncols = 376
+const offset_buildnumber = 411
