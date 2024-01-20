@@ -38,7 +38,8 @@ function column_data(data, info, i::Int)
         [0x14, 0x67], [0x23, 0x66],
         ]) ||
         (dtype1 == [0x01, 0x02] && dtype2 == [0x0c, 0x7f])
-        out = to_datetime(raw[end-8*info.nrows+1:end])
+        dt_floats = _read_reals!(raw, [lenraw-8*info.nrows], Float64, info.nrows)
+        out = to_datetime(dt_floats)
         return [ismissing(x) ? missing : Date(x) for x in out]
     end
 
@@ -52,12 +53,15 @@ function column_data(data, info, i::Int)
         [0x13, 0x82], [0x13, 0x80], [0x13, 0x81],
         [0x13, 0x89], [0x17, 0x8a]
         ]
-        return to_datetime(raw[end-8*info.nrows+1:end])
+        dt_floats = _read_reals!(raw, [lenraw-8*info.nrows], Float64, info.nrows)
+        out = to_datetime(dt_floats)
+        return [ismissing(x) ? missing : x for x in out]
     end
 
     # Duration
     if dtype1 == [0x01, 0x00] && dtype2 in [[0x0c, 0x85], [0x0e, 0x6c], [0x11, 0x6d], [0x0c, 0x85], [0x0d, 0x84], [0x0c, 0x83]]
-        return to_datetime(raw[end-8*info.nrows+1:end]) .- DateTime(1904,1,1,0,0,0)
+        dt_floats = _read_reals!(raw, [lenraw-8*info.nrows], Float64, info.nrows)
+        return to_datetime(dt_floats) .- JMP_STARTDATE
     end
 
     # Character, const width < 8
@@ -142,10 +146,32 @@ function column_data(data, info, i::Int)
 
     # Time, compressed
     if dtype1 == [0x0a, 0x00] && dtype2 in [[0x17, 0x6a], [0x16, 0x74], [0x16, 0x7e]]
-        idx = findfirst([0x1f, 0x8b], raw)
+        idx = findfirst(MAGIC_GZIP, raw)
         isnothing(idx) && error("Compressed stream not found")
         decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
-        return to_datetime(decompressed)
+        dt_floats = reinterpret(Float64, decompressed)
+        out = to_datetime(dt_floats)
+        return [ismissing(x) ? missing : x for x in out]
+    end
+
+    # Date, compressed
+    if dtype1 == [0x0a, 0x00] && dtype2 in [[0x0c, 0x7f]]
+        idx = findfirst(MAGIC_GZIP, raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        dt_floats = reinterpret(Float64, decompressed)
+        out = to_datetime(dt_floats)
+        return [ismissing(x) ? missing : Date(x) for x in out]
+    end
+
+    # Duration, compressed
+    if dtype1 == [0x0a, 0x00] && dtype2 in [[0x0c, 0x85]]
+        idx = findfirst(MAGIC_GZIP, raw)
+        isnothing(idx) && error("Compressed stream not found")
+        decompressed = transcode(GzipDecompressor, raw[idx[1]:end])
+        dt_floats = reinterpret(Float64, decompressed)
+        out = to_datetime(dt_floats) .- JMP_STARTDATE
+        return [ismissing(x) ? missing : x for x in out]
     end
 
     @error("Data type combination `dtype1,dtype2,dtype3=$dtype1,$dtype2,$dtype3` not implemented, found in column `$(info.column.names[i])` (i=$i), returning raw data for debugging")

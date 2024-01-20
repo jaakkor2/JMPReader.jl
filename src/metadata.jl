@@ -1,9 +1,12 @@
 function metadata(a)
-    nrows = _read_real!(a, [offset_nrows], Int64)
-    ncols = _read_real!(a, [offset_ncols], Int32)
-    savetime = to_datetime(a[407:414])[1]
-    buildnumber = Int(_read_real!(a, [offset_buildnumber], UInt16))
-    offset = [416]
+    offset = [offset_nrows]
+    nrows = _read_real!(a, offset, Int64)
+    ncols = _read_real!(a, offset, Int32)
+    foo1 = _read_reals!(a, offset, Int16, 5) # ??
+    charset = rstrip(_read_string!(a, offset, 4), '\0')
+    foo2 = _read_reals!(a, offset, UInt16, 3) # ?? 7,8,0
+    savetime = to_datetime([_read_real!(a, offset, Float64)])[1]
+    foo3 = _read_real!(a, offset, UInt16) ## 18
     buildstring = _read_string!(a, offset, 4)
 
     # brute-force find the offset to column data index
@@ -23,7 +26,7 @@ function metadata(a)
 
     colnames, coloffsets = column_info(a, offset[1], ncols)
     
-    Info(buildnumber, buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
+    Info(buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
 end
 
 """

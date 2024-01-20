@@ -28,7 +28,9 @@ end
     @test all(df.character1 .== "a")
     @test all(df.character11 .== "abcdefghijk")
     @test all(df.character130 .== "abcdefghij"^13)
-    @test all(df."y-m-d h:m:s" .== DateTime(1904,1,1,0,0,1))
+    @test all(df."y-m-d h:m:s" .== DateTime(1904, 1, 1, 0, 0, 1))
+    @test all(df."yyyy-mm-dd" .== DateTime(2024, 1, 20))
+    @test all(df."min:s" .== Second(196))
 end
 
 @testset "date.jmp" begin

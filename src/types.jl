@@ -5,7 +5,6 @@ struct Column
 end
 
 struct Info
-    buildnumber::Int32
     buildstring::String
     savetime::DateTime
     nrows::Int64
