@@ -10,12 +10,7 @@ function metadata(a)
     buildstring = _read_string!(a, offset, 4)
 
     # brute-force find the offset to column data index
-    idx = findfirst(reinterpret(UInt8, Int32.(0:ncols-1)), a)
-    isnothing(idx) && error("Column index not found.")
-    offset = [idx[1] - 16 - 1]
-
-    ncols2 = _read_real!(a, offset, Int32)
-    ncols == ncols2 || @error("Number of columns from two different locations do not match, $ncols vs $ncols2")
+    offset = find_column_data_offset(a, ncols)
 
     unknowns6 = _read_reals!(a, offset, Int16, 6) # ??
 
@@ -43,4 +38,16 @@ function column_info(data, offset, ncols)
         push!(colnames, String(data[2+i .+ (1:width)]))
     end
     return colnames, coloffsets
+end
+
+function find_column_data_offset(a, ncols)
+    inds = findall(reinterpret(UInt8, Int32.(0:ncols-1)), a)
+    isnothing(inds) && throw(ErrorException("Column index not found."))
+    for idx in inds
+        idx[1] > 17 || continue
+        offset = [idx[1] - 16 - 1]
+        ncols2 = _read_real!(a, offset, Int32)
+        ncols == ncols2 && return offset
+    end
+    throw(ErrorException("Column index not found.."))
 end

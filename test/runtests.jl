@@ -55,3 +55,9 @@ end
     @test names(df) == [name1, name2]
     @test Matrix(df) == [1 2; 1 2; 1 2]
 end
+
+@testset "singlecolumnsinglerow.jmp" begin
+    df = readjmp(joinpath(@__DIR__, "singlecolumnsinglerow.jmp"))
+    @test size(df) == (1, 1)
+    @test df."Column 1" == [1]
+end
