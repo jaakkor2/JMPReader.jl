@@ -18,9 +18,10 @@ function metadata(a)
     colidxlist == 0:ncols-1 || @warn("`offset_colinfo`-variable probably has a wrong value")
 
     colformatting = _read_reals!(a, offset, UInt16, ncols) # ??
+    _read_reals!(a, offset, UInt32, 7) # ??
 
-    colnames, coloffsets = column_info(a, offset[1], ncols)
-    
+    colnames, coloffsets = column_info(a, offset, ncols)
+
     Info(buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
 end
 
@@ -30,8 +31,15 @@ end
 Return column names and offsets to column data.
 """
 function column_info(data, offset, ncols)
-    hacky_offset = data[offset + 31] + 42 # TODO needs improvement
-    coloffsets = reinterpret(Int64, data[offset + hacky_offset .+ (1:8*ncols)])
+    if _read_reals!(data, offset, UInt8, 2) == [0xfd, 0xff] # ?? hacky
+        n = _read_real!(data, offset, Int64)
+        _read_reals!(data, offset, UInt8, n) # ??
+    else
+        offset .-= 2 # [0xfd, 0xff] was not found, go back
+    end   
+    ncols2 = _read_real!(data, offset, Int32)
+    ncols == ncols2 || throw(ErrorException("Number of columns read from two locations do not match.  Likely a problem in `column_info`-function."))
+    coloffsets = _read_reals!(data, offset, Int64, ncols)
     colnames = String[]
     for i in coloffsets
         push!(colnames, _read_string!(data, [i], 2))
