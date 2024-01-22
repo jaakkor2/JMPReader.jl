@@ -8,6 +8,9 @@ function metadata(a)
     savetime = to_datetime([_read_real!(a, offset, Float64)])[1]
     foo3 = _read_real!(a, offset, UInt16) ## 18
     buildstring = _read_string!(a, offset, 4)
+    m = match(r"Version (?<version>.*)$", buildstring)
+    isnothing(m) && throw(ErrorException("Could not determine JMP version"))
+    VersionNumber(m["version"]) ≥ v"15" || throw(ErrorException("The file is saved with too old JMP version ($(m["version"])).  Consider saving it with a more recent version of JMP."))
 
     # brute-force find the offset to column data index
     offset = find_column_data_offset(a, ncols)

@@ -1,7 +1,7 @@
 name = "JMPReader"
 uuid = "d9f7e686-cf87-4d12-8d7a-0e9b8c9fba29"
 authors = ["Jaakko Ruohio <jaakkor2@gmail.com>"]
-version = "0.1.4"
+version = "0.1.5"
 
 [deps]
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
