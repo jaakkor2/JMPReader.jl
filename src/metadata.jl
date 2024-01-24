@@ -51,13 +51,14 @@ function column_info(data, offset, ncols)
 end
 
 function find_column_data_offset(a, ncols)
-    inds = findall(reinterpret(UInt8, Int32.(0:ncols-1)), a)
-    isnothing(inds) && throw(ErrorException("Column index not found."))
-    for idx in inds
-        idx[1] > 17 || continue
+    bytestofind = reinterpret(UInt8, Int32.(0:ncols-1))
+    start = 17
+    while true
+        idx = findnext(bytestofind, a, start)
+        isnothing(idx) && throw(ErrorException("Column index not found."))
         offset = [idx[1] - 16 - 1]
         ncols2 = _read_real!(a, offset, Int32)
         ncols == ncols2 && return offset
+        start = idx[2] + 1
     end
-    throw(ErrorException("Column index not found.."))
 end

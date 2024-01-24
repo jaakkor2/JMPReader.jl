@@ -1,18 +1,20 @@
 name = "JMPReader"
 uuid = "d9f7e686-cf87-4d12-8d7a-0e9b8c9fba29"
 authors = ["Jaakko Ruohio <jaakkor2@gmail.com>"]
-version = "0.1.5"
+version = "0.1.6-DEV"
 
 [deps]
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+LibDeflate = "9255714d-24a7-4b30-8ea3-d46a97f7e13b"
 
 [compat]
 CodecZlib = "0.7"
 DataFrames = "1"
 Dates = "1.6"
 julia = "1.6"
+LibDeflate = "0.4"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

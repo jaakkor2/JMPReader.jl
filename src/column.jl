@@ -9,7 +9,7 @@ end
 
 Return data from `i`th column.
 """
-function column_data(data, info, i::Int)
+function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
     1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
     raw = column_rawdata(data, info, i)
 
@@ -22,7 +22,19 @@ function column_data(data, info, i::Int)
     if dt1 in [0x09, 0x0a]
         idx = findfirst(MAGIC_GZIP, raw)
         isnothing(idx) && throw(ExceptionError("Compressed stream not found"))
-        a = transcode(GzipDecompressor, raw[idx[1]:end])
+
+        rawview = @view raw[idx[1]:end]
+        if dt1 == 0x0a # Float64
+            decomp_status = gzip_decompress!(Decompressor(), deflatebuffer, rawview, max_len=8*info.nrows)
+        else
+            decomp_status = gzip_decompress!(Decompressor(), deflatebuffer, rawview)
+        end
+        if decomp_status == LibDeflateErrors.deflate_insufficient_space
+            # fall back to CodecZlib that handles > 2^32 buffers, but does not take views as input
+            a = transcode(GzipDecompressor, raw[idx[1]:end])
+        else
+            a = deflatebuffer
+        end
     else
         a = raw
     end
@@ -95,11 +107,11 @@ function column_data(data, info, i::Int)
             if dt1 == 0x09 # compressed
                 widthbytes = a[9]
                 if widthbytes == 1
-                    widths = reinterpret(Int8, a[13 .+ (1:info.nrows)])
+                    widths = reinterpret(Int8, @view a[13 .+ (1:info.nrows)])
                     io = IOBuffer(a[13 + info.nrows + 1:end])
                 elseif widthbytes == 2
-                    widths = reinterpret(Int16, a[13 .+ (1:2*info.nrows)])
-                    io = IOBuffer(a[13 + 2*info.nrows + 1:end])
+                    widths = reinterpret(Int16, @view a[13 .+ (1:2*info.nrows)])
+                    io = IOBuffer(@view a[13 + 2*info.nrows + 1:end])
                 else
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
@@ -130,7 +142,7 @@ function column_data(data, info, i::Int)
                 else
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
-                io = IOBuffer(raw[end-sum(widths)+1:end])
+                io = IOBuffer(@view raw[end-sum(widths)+1:end])
             end
 
             str = [String(read(io, widths[i])) for i in 1:info.nrows]

@@ -5,6 +5,7 @@ export readjmp
 using Dates: unix2datetime, Date, DateTime
 using DataFrames: DataFrame
 using CodecZlib: transcode, GzipDecompressor
+using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 
 include("types.jl")
 include("constants.jl")
@@ -22,7 +23,8 @@ function readjmp(fn::AbstractString)
     a = read(fn)
     check_magic(a, fn)
     info = metadata(a)
-    alldata = [column_data(a, info, i) for i in 1:info.ncols]
+    deflatebuffer = Vector{UInt8}()
+    alldata = [column_data(a, info, i, deflatebuffer) for i in 1:info.ncols]
     return DataFrame(alldata, info.column.names)
 end
 
