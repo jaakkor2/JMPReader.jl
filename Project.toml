@@ -8,17 +8,19 @@ CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 LibDeflate = "9255714d-24a7-4b30-8ea3-d46a97f7e13b"
+WeakRefStrings = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
 
 [compat]
 CodecZlib = "0.7"
 DataFrames = "1"
 Dates = "1.6"
-julia = "1.6"
 LibDeflate = "0.4"
+WeakRefStrings = "1.4"
+julia = "1.6"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "Printf"]

@@ -6,6 +6,7 @@ using Dates: unix2datetime, Date, DateTime
 using DataFrames: DataFrame
 using CodecZlib: transcode, GzipDecompressor
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
+using WeakRefStrings: StringVector
 
 include("types.jl")
 include("constants.jl")

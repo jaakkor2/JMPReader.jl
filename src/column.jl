@@ -1,7 +1,7 @@
 function column_rawdata(data, info, i::Int)
     1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
     i == info.ncols && return data[info.column.offsets[i]+1:end]
-    return data[info.column.offsets[i]+1:info.column.offsets[i+1]]
+    return @view data[info.column.offsets[i]+1:info.column.offsets[i+1]]
 end
 
 """
@@ -42,14 +42,14 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
     # one of Float64, Date, Time, Duration
     # dt3 = format width
     if dt1 in [0x01, 0x0a]
-        out = reinterpret(Float64, a[end-8*info.nrows+1:end])
+        out = reinterpret(Float64, @view a[end-8*info.nrows+1:end])
         # Float64
         if  (dt4 == dt5 && dt4 in [
             0x00, 0x03, 0x42, 0x43, 0x59, 0x60, 0x63,
             ]) ||
             dt5 in [0x5e] # fixed dec, dt3=width, dt4=dec
 
-            out = replace(out, NaN => missing)
+            out = replace(out, NaN => missing) # materialize
             return out
         end
         # then it is a date, time or duration
@@ -95,8 +95,10 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
         if ([dt3, dt4] == [0x00, 0x00] && dt5 > 0) ||
             (0x01 ≤ dt3 ≤ 0x07 && dt4 == 0x00)
             width = dt5
-            io = IOBuffer(a[end-info.nrows*width+1:end])
-            str = [String(read(io, width)) for i in 1:info.nrows]
+            io = a[end-info.nrows*width+1:end]
+            str = StringVector{String}(io, info.nrows)
+            str.lengths .= width
+            str.offsets .= [0; cumsum(str.lengths)[begin:end-1]]
             str = rstrip.(str, '\0')
             str = String.(str) # SubString->String
             return str
@@ -108,10 +110,10 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
                 widthbytes = a[9]
                 if widthbytes == 1
                     widths = reinterpret(Int8, @view a[13 .+ (1:info.nrows)])
-                    io = IOBuffer(a[13 + info.nrows + 1:end])
+                    io = a[13 + info.nrows + 1:end]
                 elseif widthbytes == 2
                     widths = reinterpret(Int16, @view a[13 .+ (1:2*info.nrows)])
-                    io = IOBuffer(@view a[13 + 2*info.nrows + 1:end])
+                    io = a[13 + 2*info.nrows + 1:end]
                 else
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
@@ -142,10 +144,12 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
                 else
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
-                io = IOBuffer(@view raw[end-sum(widths)+1:end])
+                io = raw[end-sum(widths)+1:end]
             end
-
-            str = [String(read(io, widths[i])) for i in 1:info.nrows]
+            str = StringVector{String}(io, info.nrows)
+            str.lengths .= widths
+            str.offsets .= [0; cumsum(UInt64.(widths))[begin:end-1]]
+            str = String.(str) # materialize
             return str
         end
     end
