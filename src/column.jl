@@ -96,11 +96,7 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
             (0x01 ≤ dt3 ≤ 0x07 && dt4 == 0x00)
             width = dt5
             io = a[end-info.nrows*width+1:end]
-            str = StringVector{String}(io, info.nrows)
-            str.lengths .= width
-            str.offsets .= [0; cumsum(str.lengths)[begin:end-1]]
-            str = rstrip.(str, '\0')
-            str = String.(str) # SubString->String
+            str = to_str(io, info.nrows, width)
             return str
         end
         
@@ -120,14 +116,12 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
             else # uncompressed
                 # continue after dt1,...,dt5 were read
                 _read_reals!(raw, offset, UInt8, 5)
-                hasunits = _read_real!(raw, offset, UInt8)
+                hasprops = _read_real!(raw, offset, UInt8)
                 _read_reals!(raw, offset, UInt8)
                 n1 = _read_real!(raw, offset, Int64)
-                if hasunits == 1 && n1 > 0
-                    _read_real!(raw, offset, Int16) # ??
-                    _read_real!(raw, offset, Int64) # some length
-                    label = _read_string!(raw, offset, 4)
-                    _read_real!(raw, offset, UInt32)
+                if hasprops == 1
+                    # some block that ends in [0xff, 0xff, 0xff, 0xff]
+                    offset[1] = findnext([0xff, 0xff, 0xff, 0xff], raw, offset[1])[end]
                 end
                 _read_real!(raw, offset, UInt16) # n2 as bytes
                 n2 = _read_real!(raw, offset, UInt32)
@@ -146,10 +140,7 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
                 end
                 io = raw[end-sum(widths)+1:end]
             end
-            str = StringVector{String}(io, info.nrows)
-            str.lengths .= widths
-            str.offsets .= [0; cumsum(UInt64.(widths))[begin:end-1]]
-            str = String.(str) # materialize
+            str = to_str(io, info.nrows, widths)
             return str
         end
     end

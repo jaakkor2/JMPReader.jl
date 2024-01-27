@@ -3,10 +3,12 @@ module JMPReader
 export readjmp
 
 using Dates: unix2datetime, Date, DateTime
-using DataFrames: DataFrame
+using DataFrames: DataFrame, select!
 using CodecZlib: transcode, GzipDecompressor
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 using WeakRefStrings: StringVector
+using Base.Threads: nthreads, @threads, @spawn
+using Base.Iterators: partition
 
 include("types.jl")
 include("constants.jl")
@@ -24,9 +26,13 @@ function readjmp(fn::AbstractString)
     a = read(fn)
     check_magic(a, fn)
     info = metadata(a)
+
     deflatebuffer = Vector{UInt8}()
     alldata = [column_data(a, info, i, deflatebuffer) for i in 1:info.ncols]
-    return DataFrame(alldata, info.column.names)
+    names = info.column.names
+    df = DataFrame(alldata, names)
+
+    return df
 end
 
 end # module JMPReader

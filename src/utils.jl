@@ -30,7 +30,45 @@ end
 
 function check_magic(a, fn)
     len = length(a)
-    len ≥ length(MAGIC_JMP) && a[1:length(MAGIC_JMP)] == MAGIC_JMP || throw(ArgumentError("\"$fn\" is not a .jmp file"))
-    len < 507 && throw(ArgumentError("\"$fn\" truncated?"))
+    len ≥ length(MAGIC_JMP) && a[1:length(MAGIC_JMP)] == MAGIC_JMP || throw(ArgumentError("Data table appears to have been corrupted, or is not a .jmp file. `$fn` "))
+    len < 507 && throw(ArgumentError("Data table appears to have been corrupted. `$fn`"))
+    nothing
+end
+
+function to_str(buffer, n, lengths::AbstractVector)
+    str = StringVector{String}(buffer, n)
+    str.lengths .= lengths
+    offset = UInt64(0)
+    @inbounds for i in 1:n
+        str.offsets[i] = offset
+        offset += lengths[i]
+    end
+    str
+end
+
+function to_str(buffer, n, length::Integer)
+    str = StringVector{String}(buffer, n)
+    str.lengths .= length
+    offset = UInt64(0)
+    @inbounds for i in 1:n
+        str.offsets[i] = offset
+        offset += length
+    end
+    rstripnull!(str)
+    str
+end
+
+"""
+    rstripnull!(strs::StringVector)
+
+Remove trailing nulls from `strs`.
+"""
+function rstripnull!(s::StringVector)
+    @inbounds for (i, (length, offset)) in enumerate(zip(s.lengths, s.offsets))
+        while s.buffer[offset + length] == 0x00 && length > 0
+            length -= 1
+        end
+        s.lengths[i] = length
+    end
     nothing
 end
