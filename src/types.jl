@@ -5,6 +5,7 @@ struct Column
 end
 
 struct Info
+    version::VersionNumber
     buildstring::String
     savetime::DateTime
     nrows::Int64

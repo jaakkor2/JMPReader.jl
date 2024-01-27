@@ -10,7 +10,7 @@ function metadata(a)
     buildstring = _read_string!(a, offset, 4)
     m = match(r"Version (?<version>.*)$", buildstring)
     isnothing(m) && throw(ErrorException("Could not determine JMP version"))
-    VersionNumber(m["version"]) ≥ v"15" || throw(ErrorException("The file is saved with too old JMP version ($(m["version"])).  Consider saving it with a more recent version of JMP."))
+    version = VersionNumber(m["version"])
 
     # brute-force find the offset to column data index
     offset = find_column_data_offset(a, ncols)
@@ -25,7 +25,7 @@ function metadata(a)
 
     colnames, coloffsets = column_info(a, offset, ncols)
 
-    Info(buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
+    Info(version, buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
 end
 
 """
