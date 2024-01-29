@@ -34,14 +34,19 @@ end
 Return column names and offsets to column data.
 """
 function column_info(data, offset, ncols)
-    if _read_reals!(data, offset, UInt8, 2) == [0xfd, 0xff] # ?? hacky
-        n = _read_real!(data, offset, Int64)
-        _read_reals!(data, offset, UInt8, n) # ??
-    else
-        offset .-= 2 # [0xfd, 0xff] was not found, go back
-    end   
+    while true
+        twobytes = _read_reals!(data, offset, UInt8, 2)
+        # TODO below is not correct since number of column (UInt32) might match with the two bytes listed below.
+        if twobytes in [[0xfd, 0xff], [0xfe, 0xff], [0xff, 0xff]] # ?? hacky
+            n = _read_real!(data, offset, Int64)
+            _read_reals!(data, offset, UInt8, n)
+        else
+            offset .-= 2 # no negative number was found, go back
+            break
+        end
+    end
     ncols2 = _read_real!(data, offset, Int32)
-    ncols == ncols2 || throw(ErrorException("Number of columns read from two locations do not match.  Likely a problem in `column_info`-function."))
+    ncols == ncols2 || throw(ErrorException("Number of columns read from two locations do not match.  Likely a problem in `column_info`-function. $ncols vs $ncols2"))
     coloffsets = _read_reals!(data, offset, Int64, ncols)
     colnames = String[]
     for i in coloffsets
