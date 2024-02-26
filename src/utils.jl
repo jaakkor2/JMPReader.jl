@@ -72,3 +72,27 @@ function rstripnull!(s::StringVector)
     end
     nothing
 end
+
+function filter_columns(names, include_columns, exclude_columns)
+    cols = 1:length(names)
+    if !isnothing(include_columns)
+        cols = intersect(cols, filter_names(names, include_columns))
+    end
+    if !isnothing(exclude_columns)
+        cols = setdiff(cols, filter_names(names, exclude_columns))
+    end
+    cols = sort(cols)
+    return cols
+end
+
+function filter_names(names, rules)
+    idx = UInt[]
+    for rule in rules
+        isa(rule, Integer) && push!(idx, rule)
+        isa(rule, OrdinalRange) && push!(idx, rule...)
+        isa(rule, String) && push!(idx, findfirst(==(rule), names))
+        isa(rule, Symbol) && push!(idx, findfirst(==(String(rule)), names))
+        isa(rule, Regex) && push!(idx, findall(contains.(names, rule))...)
+    end
+    return idx
+end

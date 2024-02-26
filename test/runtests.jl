@@ -61,3 +61,14 @@ end
     @test size(df) == (1, 1)
     @test df."Column 1" == [1]
 end
+
+@testset "column name filtering" begin
+    names = ["foo", "foo_x", "foo_y", "bar", "bar_x", "bar_y", "baz"]
+    @test JMPReader.filter_columns(names, [1,8], nothing) == [1]
+    @test JMPReader.filter_columns(names, [1,7,"bar"], nothing) == [1,4,7]
+    @test JMPReader.filter_columns(names, [1,7,"bar",4], nothing) == [1,4,7]
+    @test JMPReader.filter_columns(names, nothing, [r"^foo"]) == [4,5,6,7]
+    @test JMPReader.filter_columns(names, nothing, [r"_x$", :bar]) == [1,3,6,7]
+    @test JMPReader.filter_columns(names, [3:10], [10:-3:1]) == [3,5,6]
+    @test JMPReader.filter_columns(names, ["foo_x", :baz, r"^bar", 3, 1:2], [4, r"x$"]) == [1,3,6,7]
+end
