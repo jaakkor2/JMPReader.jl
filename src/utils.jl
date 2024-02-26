@@ -86,13 +86,13 @@ function filter_columns(names, include_columns, exclude_columns)
 end
 
 function filter_names(names, rules)
-    idx = UInt[]
+    idx = Int[]
     for rule in rules
         isa(rule, Integer) && push!(idx, rule)
-        isa(rule, OrdinalRange) && push!(idx, rule...)
+        isa(rule, OrdinalRange) && append!(idx, rule)
         isa(rule, String) && push!(idx, findfirst(==(rule), names))
         isa(rule, Symbol) && push!(idx, findfirst(==(String(rule)), names))
-        isa(rule, Regex) && push!(idx, findall(contains.(names, rule))...)
+        isa(rule, Regex) && append!(idx, findall(contains.(names, rule)))
     end
     return idx
 end

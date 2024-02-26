@@ -3,10 +3,11 @@ module JMPReader
 export readjmp
 
 using Dates: unix2datetime, Date, DateTime
-using DataFrames: DataFrame, select!
+using DataFrames: DataFrame, select!, insertcols!
 using CodecZlib: transcode, GzipDecompressor
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 using WeakRefStrings: StringVector
+using Base.Threads: nthreads, @spawn, threadid
 using Base.Iterators: partition
 
 include("types.jl")
@@ -33,10 +34,16 @@ function readjmp(fn::AbstractString;
     info = metadata(a)
     colinds = filter_columns(info.column.names, include_columns, exclude_columns)
 
-    deflatebuffer = Vector{UInt8}()
-    alldata = [column_data(a, info, i, deflatebuffer) for i in colinds]
-    names = info.column.names[colinds]
-    df = DataFrame(alldata, names)
+    df = DataFrame()
+    deflatebuffers = [Vector{UInt8}() for i = 1:Threads.nthreads()]
+    lk = ReentrantLock()
+    Threads.@threads :static for i in colinds
+        data = column_data(a, info, i, deflatebuffers[threadid()])
+        lock(lk) do
+            insertcols!(df, info.column.names[i] => data)
+        end
+    end
+    select!(df, info.column.names[colinds])
 
     return df
 end

@@ -2,6 +2,7 @@ using Test
 using JMPReader
 using Dates: Date, DateTime, Second
 using Printf: @sprintf
+using DataFrames: names
 
 @testset "example1.jmp" begin
     df = readjmp(joinpath(@__DIR__, "example1.jmp"))
@@ -71,4 +72,9 @@ end
     @test JMPReader.filter_columns(names, nothing, [r"_x$", :bar]) == [1,3,6,7]
     @test JMPReader.filter_columns(names, [3:10], [10:-3:1]) == [3,5,6]
     @test JMPReader.filter_columns(names, ["foo_x", :baz, r"^bar", 3, 1:2], [4, r"x$"]) == [1,3,6,7]
+end
+
+@testset "include/exclude columns" begin
+    @test names(readjmp("time.jmp", include_columns = [1,3:2:5,"ddMonyyyy h:m"])) == ["m-d-y h:m", "d-m-y h:m", "y-m-d h:m", "ddMonyyyy h:m"]
+    @test names(readjmp("time.jmp", exclude_columns = [r"d"])) == ["h:m:s", "h:m", "Locale Date Time h:m", "Locale Date Time h:m:s"]
 end

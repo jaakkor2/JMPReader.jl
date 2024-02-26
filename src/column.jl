@@ -150,16 +150,3 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
     @error("Data type combination `(dt1,dt2,dt3,dt4,dt5)=$dt1,$dt2,$dt3,$dt4,$dt5` not implemented, found in column `$(info.column.names[i])` (i=$i), returning a vector of NaN's")
     return fill(NaN, info.nrows)
 end
-
-function column_data(data, info, name::Union{String,Regex})
-    name in info.column.names || error("Column name $name does not exist")
-    if isa(name, String)
-        fun = isequal(name)
-    else
-        fun = x -> !isnothing(match(name, x))
-    end
-    idx = findall(fun, info.column.names)
-    columns = [column_data(data, info, i) for i in idx]
-    names = info.column.names[idx]
-    return DataFrame(columns, names)
-end
