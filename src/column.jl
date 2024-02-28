@@ -1,42 +1,37 @@
-function column_rawdata(data, info, i::Int)
-    1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
-    i == info.ncols && return data[info.column.offsets[i]+1:end]
-    return @view data[info.column.offsets[i]+1:info.column.offsets[i+1]]
-end
-
 """
     column_data(data, info, i::Int)
 
 Return data from `i`th column.
 """
-function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
+function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     1 ≤ i ≤ info.ncols || error("requested column $i is out-of-bounds")
-    raw = column_rawdata(data, info, i)
+    
+    seek(io, info.column.offsets[i])
 
-    offset = [0]
-    columnname = _read_string!(raw, offset, 2)
+    columnname = _read_string!(io, 2)
     lenname = length(columnname)
-    dt1, dt2, dt3, dt4, dt5 = _read_reals!(raw, offset, UInt8, 5)
+    dt1, dt2, dt3, dt4, dt5 = read_reals(io, UInt8, 5)
+    mark(io)
 
     # compressed
     if dt1 in [0x09, 0x0a]
-        idx = findfirst(MAGIC_GZIP, raw)
-        isnothing(idx) && throw(ExceptionError("Compressed stream not found"))
-
-        rawview = @view raw[idx[1]:end]
-        if dt1 == 0x0a # Float64
-            decomp_status = gzip_decompress!(Decompressor(), deflatebuffer, rawview, max_len=8*info.nrows)
-        else
-            decomp_status = gzip_decompress!(Decompressor(), deflatebuffer, rawview)
-        end
-        if decomp_status == LibDeflateErrors.deflate_insufficient_space
-            # fall back to CodecZlib that handles > 2^32 buffers, but does not take views as input
-            a = transcode(GzipDecompressor, raw[idx[1]:end])
-        else
+        readuntil(io, GZIP_SECTION_START)
+        gziplen = read(io, UInt64)
+        gunziplen = read(io, UInt64)
+        raw = mmap(io, Vector{UInt8}, gziplen)
+        if gunziplen < 2^32
+            decomp_status = gzip_decompress!(Decompressor(), deflatebuffer, raw, max_len = gunziplen)
+            decomp_status == LibDeflateErrors.deflate_insufficient_space && @error "deflate insufficient space"
             a = deflatebuffer
+        else
+            # fall back to CodecZlib that handles > 2^32 buffers
+            a = transcode(GzipDecompressor, raw)
         end
     else
-        a = raw
+        colend = i == info.ncols ? position(seekend(io)) : info.column.offsets[i+1]
+        seek(io, info.column.offsets[i])
+        a = mmap(io, Vector{UInt8}, colend - position(io) )
+        reset(io)
     end
     
     # one of Float64, Date, Time, Duration
@@ -97,8 +92,8 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
         if ([dt3, dt4] == [0x00, 0x00] && dt5 > 0) ||
             (0x01 ≤ dt3 ≤ 0x07 && dt4 == 0x00)
             width = dt5
-            io = a[end-info.nrows*width+1:end]
-            str = to_str(io, info.nrows, width)
+            data = a[end-info.nrows*width+1:end]
+            str = to_str(data, info.nrows, width)
             return str
         end
         
@@ -108,41 +103,34 @@ function column_data(data, info, i::Int, deflatebuffer::Vector{UInt8})
                 widthbytes = a[9]
                 if widthbytes == 1
                     widths = reinterpret(Int8, @view a[13 .+ (1:info.nrows)])
-                    io = a[13 + info.nrows + 1:end]
+                    data = a[13 + info.nrows + 1:end]
                 elseif widthbytes == 2
                     widths = reinterpret(Int16, @view a[13 .+ (1:2*info.nrows)])
-                    io = a[13 + 2*info.nrows + 1:end]
+                    data = a[13 + 2*info.nrows + 1:end]
                 else
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
             else # uncompressed
                 # continue after dt1,...,dt5 were read
-                _read_reals!(raw, offset, UInt8, 5)
-                hasprops = _read_real!(raw, offset, UInt8)
-                _read_reals!(raw, offset, UInt8)
-                n1 = _read_real!(raw, offset, Int64)
+                read_reals(io, UInt8, 5)
+                hasprops = read(io, UInt8)
+                read(io, UInt8)
+                n1 = read(io, Int64)
                 if hasprops == 1
                     # some block that ends in [0xff, 0xff, 0xff, 0xff]
-                    offset[1] = findnext([0xff, 0xff, 0xff, 0xff], raw, offset[1])[end]
+                    readuntil(io, [0xff, 0xff, 0xff, 0xff])
                 end
-                _read_real!(raw, offset, UInt16) # n2 as bytes
-                n2 = _read_real!(raw, offset, UInt32)
-                _read_reals!(raw, offset, UInt8, n2)
-                _read_real!(raw, offset, UInt64) # 8 bytes
-                widthbytes = _read_real!(raw, offset, UInt8)
-                maxwidth = _read_real!(raw, offset, UInt32)
-                if widthbytes == 0x01 # Int8
-                    widths = _read_reals!(raw, offset, Int8, info.nrows)
-                elseif widthbytes == 0x02 # Int16
-                    widths = _read_reals!(raw, offset, Int16, info.nrows)
-                elseif widthbytes == 0x04 # Int32
-                    widths = _read_reals!(raw, offset, Int32, info.nrows)
-                else
-                    throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
-                end
-                io = raw[end-sum(widths)+1:end]
+                read(io, UInt16) # n2 as bytes
+                n2 = read(io, UInt32)
+                read_reals(io, UInt8, n2)
+                read(io, UInt64) # 8 bytes
+                widthbytes = read(io, UInt8)
+                maxwidth = read(io, UInt32)
+                widthtype = widthbytes == 0x01 ? Int8 : widthbytes == 0x02 ? Int16 : widthbytes == 0x04 ? Int32 : throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
+                widths = read_reals(io, widthtype, info.nrows)
+                data = mmap(seek(io, colend - sum(widths)), Vector{UInt8}, sum(widths))
             end
-            str = to_str(io, info.nrows, widths)
+            str = to_str(data, info.nrows, widths)
             return str
         end
     end

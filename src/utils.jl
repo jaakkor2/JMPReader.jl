@@ -1,21 +1,22 @@
-function _read_string!(a, offset, width)
+function _read_string!(io, width)
     width in [1,2,4] || throw(ArgumentError("Invalid string width $(width)"))
     type = width == 1 ? Int8 : width == 2 ? Int16 : Int32
-    len = _read_real!(a, offset, type)
-    str = String(a[offset[1] .+ (1:len)])
-    offset[1] += len
+    len = read(io, type)
+    str = String(read(io, len))
     return str
 end
 
-function _read_reals!(a, offset, type, len = 1)
+function read_reals(io, type, len = 1)
     type <: Real || throw(ArgumentError("Specified type $type is not a real type"))
     width = sizeof(type)
-    reals = reinterpret(type, a[offset[1] .+ (1:len*width)])
-    offset[1] += len*width
+    if mod(position(io), width) == 0 # proper alignment
+        reals = mmap(io, Vector{type}, len)
+        skip(io, width*len)
+    else
+        reals = [read(io, type) for _ in 1:len]
+    end
     return reals
 end
-
-_read_real!(a, offset, type) = _read_reals!(a, offset, type)[1]
 
 """
     to_datetime(floats::AbstractVector{Float64})
@@ -28,11 +29,9 @@ function to_datetime(floats::AbstractVector{Float64})
     dt .- (unix2datetime(0) - JMP_STARTDATE)
 end
 
-function check_magic(a, fn)
-    len = length(a)
-    len ≥ length(MAGIC_JMP) && a[1:length(MAGIC_JMP)] == MAGIC_JMP || throw(ArgumentError("Data table appears to have been corrupted, or is not a .jmp file. `$fn` "))
-    len < 507 && throw(ArgumentError("Data table appears to have been corrupted. `$fn`"))
-    nothing
+function check_magic(io)
+    magic = read(io, length(MAGIC_JMP))
+    magic == MAGIC_JMP
 end
 
 function to_str(buffer, n, lengths::AbstractVector)

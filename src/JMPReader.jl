@@ -9,6 +9,7 @@ using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateEr
 using WeakRefStrings: StringVector
 using Base.Threads: nthreads, @spawn, threadid
 using Base.Iterators: partition
+using Mmap: mmap
 
 include("types.jl")
 include("constants.jl")
@@ -29,21 +30,27 @@ function readjmp(fn::AbstractString;
     exclude_columns::Union{Nothing, Vector} = nothing)
 
     isfile(fn) || throw(ArgumentError("\"$fn\" does not exist"))
-    a = read(fn)
-    check_magic(a, fn)
-    info = metadata(a)
+    io = open(fn)
+    check_magic(io) || (close(io); throw(ArgumentError("Data table appears to have been corrupted, or `$fn` is not a .jmp file.")))
+    info = metadata(io)
+
     colinds = filter_columns(info.column.names, include_columns, exclude_columns)
 
     df = DataFrame()
     deflatebuffers = [Vector{UInt8}() for i = 1:Threads.nthreads()]
+    close(io)
+    ios = [open(fn) for i = 1:Threads.nthreads()]
     lk = ReentrantLock()
     Threads.@threads :static for i in colinds
-        data = column_data(a, info, i, deflatebuffers[threadid()])
+        data = column_data(ios[threadid()], info, i, deflatebuffers[threadid()])
         lock(lk) do
             insertcols!(df, info.column.names[i] => data)
         end
     end
     select!(df, info.column.names[colinds])
+    for io in ios
+        close(io)
+    end
 
     return df
 end
