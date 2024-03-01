@@ -1,6 +1,6 @@
 struct Column
     names::Vector{String}
-    unknown::Vector{UInt16}
+    widths::Vector{UInt16} # display column widths
     offsets::Vector{Int64}
 end
 

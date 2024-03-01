@@ -13,20 +13,15 @@ function metadata(io)
     version = VersionNumber(m["version"])
 
     # brute-force find the offset to column data index
-    offset = find_column_data_offset(io, ncols)
-    seek(io, offset)
-    ncols2 = read(io, UInt32)
-    unknown6 = read_reals(io, UInt16, 6) # ??
-
-    colidxlist = read_reals(io, Int32, ncols)
-    colidxlist == 0:ncols-1 || @warn("`offset_colinfo`-variable probably has a wrong value")
-    
-    colformatting = read_reals(io, UInt16, ncols) # ??
+    n_visible, n_hidden = seek_to_column_data_offsets(io)
+    idx_visible = read_reals(io, UInt32, n_visible)
+    idx_hidden = read_reals(io, UInt32, n_hidden)
+    colwidths = read_reals(io, UInt16, ncols)
     read_reals(io, UInt32, 7) # ??
     
     colnames, coloffsets = JMPReader.column_info(io, ncols)
 
-    Info(version, buildstring, savetime, nrows, ncols, Column(colnames, colformatting, coloffsets))
+    Info(version, buildstring, savetime, nrows, ncols, Column(colnames, colwidths, coloffsets))
 end
 
 """
@@ -57,14 +52,14 @@ function column_info(io, ncols)
     return colnames, coloffsets
 end
 
-function find_column_data_offset(io, ncols)
-    bytestofind = reinterpret(UInt8, Int32.(0:ncols-1))
+function seek_to_column_data_offsets(io)
     seekstart(io)
-    while true
-        readuntil(io, bytestofind)
-        skip(io, -length(bytestofind) - 16)
-        ncols2 = read(io, Int32)
-        ncols == ncols2 && return position(io) - 4
-        skip(io, 16)
-    end
+    skip(io, 2)
+    readuntil(io, [0xff, 0xff])
+    eof(io) && throw(ErrorException("Could not find column offset data"))
+    skip(io, 10)
+    n_visible = read(io, UInt32)
+    n_hidden = read(io, UInt32)
+    skip(io, 4+4) # unknown
+    n_visible, n_hidden
 end

@@ -11,6 +11,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     columnname = _read_string!(io, 2)
     lenname = length(columnname)
     dt1, dt2, dt3, dt4, dt5 = read_reals(io, UInt8, 5)
+#    @show dt1, dt2, dt3, dt4, dt5
     mark(io)
 
     # compressed
@@ -37,6 +38,11 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     # one of Float64, Date, Time, Duration
     # dt3 = format width
     if dt1 in [0x01, 0x0a]
+        if dt3 == 0x04 
+            @error "i=$i, dt3=$dt3 not handled properly"
+            return fill(NaN, info.nrows)
+        end
+
         out = reinterpret(Float64, @view a[end-8*info.nrows+1:end])
         # Float64
         if  (dt4 == dt5 && dt4 in [
