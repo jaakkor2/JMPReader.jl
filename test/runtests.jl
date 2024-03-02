@@ -6,7 +6,7 @@ using DataFrames: names
 
 @testset "example1.jmp" begin
     df = readjmp(joinpath(@__DIR__, "example1.jmp"))
-    @test df.ints == [1.0,2.0,3.0,4.0]
+    @test df.ints == [1,2,3,4]
     @test df.floats == [11.1,22.2,33.3,44.4]
     @test df.charconstwidth == ["a","b","c","d"]
     @test df.time[[1,2,3]] == [DateTime(1976,4,1,21,12), DateTime(1984,8,6,23,58), DateTime(2003,6,2,17)]
@@ -77,4 +77,27 @@ end
 @testset "include/exclude columns" begin
     @test names(readjmp("time.jmp", include_columns = [1,3:2:5,"ddMonyyyy h:m"])) == ["m-d-y h:m", "d-m-y h:m", "y-m-d h:m", "ddMonyyyy h:m"]
     @test names(readjmp("time.jmp", exclude_columns = [r"d"])) == ["h:m:s", "h:m", "Locale Date Time h:m", "Locale Date Time h:m:s"]
+end
+
+@testset "byte integers" begin
+    df = readjmp("byteintegers.jmp")
+    @test eltype(df."1-byte integer") == Int8
+    @test eltype(df."2-byte integer") == Int16
+    @test eltype(df."4-byte integer") == Int32
+    @test df."1-byte integer" == Int8[0,1,0,1,0]
+    @test df."2-byte integer" == Int16[-187,-30,-18,13,-55]
+    @test df."4-byte integer" == Int32[-28711,-16887,-26063,13093,-44761]
+
+    df = readjmp("byteintegers_notcompressed.jmp")
+    @test eltype(df.onebyte) == Int8
+    @test eltype(df.twobyte) == Union{Missing,Int16}
+    @test eltype(df.fourbyte) == Union{Missing,Int32}
+    @test eltype(df.numeric) == Union{Missing,Float64}
+    @test df.onebyte == Int8[1,2,-126,127]
+    @test df.twobyte[[1,3,4]] == [32767,0,-32766]
+    @test ismissing(df.twobyte[2])
+    @test df.fourbyte[[2,3]] == [2147483647,-2147483646]
+    @test all(ismissing, df.fourbyte[[1,4]])
+    @test df.numeric[2] == 2147483648
+    @test all(ismissing, df.numeric[[1,3,4]])
 end

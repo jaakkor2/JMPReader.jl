@@ -10,8 +10,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
 
     columnname = _read_string!(io, 2)
     lenname = length(columnname)
-    dt1, dt2, dt3, dt4, dt5 = read_reals(io, UInt8, 5)
-#    @show dt1, dt2, dt3, dt4, dt5
+    dt1, dt2, dt3, dt4, dt5, dt6 = read_reals(io, UInt8, 6)
     mark(io)
 
     # compressed
@@ -34,23 +33,22 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         a = mmap(io, Vector{UInt8}, colend - position(io) )
         reset(io)
     end
-    
-    # one of Float64, Date, Time, Duration
+
+    # one of Float64, Date, Time, Duration, byte integer
     # dt3 = format width
     if dt1 in [0x01, 0x0a]
-        if dt3 == 0x04 
-            @error "i=$i, dt3=$dt3 not handled properly"
-            return fill(NaN, info.nrows)
-        end
+        T = dt6 == 0x01 ? Int8 : dt6 == 0x02 ? Int16 : dt6 == 0x04 ? Int32 : Float64
+        out = reinterpret(T, @view a[end-dt6*info.nrows+1:end])
 
-        out = reinterpret(Float64, @view a[end-8*info.nrows+1:end])
-        # Float64
+        # Float64 or byte integers
         if  (dt4 == dt5 && dt4 in [
-            0x00, 0x03, 0x42, 0x43, 0x59, 0x60, 0x63,
+            0x00, 0x03, 0x42, 0x43, 0x44, 0x59, 0x60, 0x63,
             ]) ||
-            dt5 in [0x5e] # fixed dec, dt3=width, dt4=dec
+            dt5 in [0x5e, 0x63] # fixed dec, dt3=width, dt4=dec
 
-            out = replace(out, NaN => missing) # materialize
+            if !isnothing(findfirst(isnan, out))
+                out = replace(out, NaN => missing) # materialize
+            end
             return out
         end
         # then it is a date, time or duration
@@ -60,36 +58,57 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
             0x65, 0x66, 0x67, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x75, 0x76, 0x7a,
             0x7f, 0x88, 0x8b,
             ]) ||
-            [dt4, dt5] in [[0x72, 0x65]]
+            [dt4, dt5] in [[0x67, 0x65], [0x6f, 0x65], [0x72, 0x65], [0x72, 0x6f], [0x72, 0x7f], [0x72, 0x80], [0x7f, 0x72], [0x88, 0x65], [0x88, 0x7a]]
 
             return [ismissing(x) ? missing : Date(x) for x in out]
         end
-        # Time
-        if dt5 in [0x69, 0x6a, 0x73, 0x74, 0x78, 0x7e, 0x81] && dt4 in [
+        # DateTime
+        if dt5 in [0x69, 0x6a, 0x73, 0x74, 0x77, 0x78, 0x7e, 0x81] && dt4 in [
             0x69, 0x6a, 0x6c, 0x6d, 0x73, 0x74, 0x77, 0x78, 0x79, 0x7b, 0x7c,
             0x7d, 0x7e, 0x80, 0x81, 0x82, 0x86, 0x87, 0x89, 0x8a,
             ] ||
-            dt4 == dt5 in [0x7d]
+            dt4 == dt5 in [0x79, 0x7d] ||
+            [dt4, dt5] in [[0x77, 0x80], [0x77, 0x7f], [0x89, 0x65]]
 
             return [ismissing(x) ? missing : DateTime(x) for x in out]
-
         end
+        # Time
+        if dt4 == dt5 in [0x82]
+
+            return [ismissing(x) ? missing : Time(x) for x in out]
+        end
+
         # Duration
         if dt4 == dt5 && dt4 in [
             0x0c, 0x6b, 0x6c, 0x6d, 0x83, 0x84, 0x85
-            ]
+            ] ||
+            [dt4, dt5] in [[0x84, 0x79]]
+
             return [ismissing(x) ? missing : DateTime(x) - JMP_STARTDATE for x in out]
         end
         # Currency
         if dt4 == dt5 && dt4 in [0x5f]
-            # 1,0,13,95,95
             @warn("currency not implemented")
         end
+        # Longitude
+        if dt4 == dt5 && dt4 in [0x54, 0x55]
+            @warn("longitude not implemented")
+        end
+        # Latitude
+        if dt4 == dt5 && dt4 in [0x51, 0x52]
+            @warn("latitude not implemented")
+        end
     end
-    # 1-byte integer
-    if dt1 == 0xff # custom format?
-        # 255,0,4,99,1
-        @warn("one-byte integer not implemented")
+
+    # byte integer
+    if dt1 in [0xff, 0xfe, 0xfc]
+        T = dt5 == 0x01 ? Int8 : dt5 == 0x02 ? Int16 : dt5 == 0x04 ? Int32 : Float64
+        out = reinterpret(T, @view a[end-dt5*info.nrows+1:end])
+        missingvalue = typemin(T) + 1
+        if !isnothing(findfirst(==(missingvalue), out))
+            out = replace(out, missingvalue => missing) # materialize
+        end
+        return out
     end
 
     # character
@@ -117,19 +136,13 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
                     throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
                 end
             else # uncompressed
-                # continue after dt1,...,dt5 were read
-                read_reals(io, UInt8, 5)
-                hasprops = read(io, UInt8)
-                read(io, UInt8)
+                # continue after dt1,...,dt6 were read
+                skip(io, 6)
                 n1 = read(io, Int64)
-                if hasprops == 1
-                    # some block that ends in [0xff, 0xff, 0xff, 0xff]
-                    readuntil(io, [0xff, 0xff, 0xff, 0xff])
-                end
-                read(io, UInt16) # n2 as bytes
+                skip(io, n1)
+                skip(io, 2) # n2 as bytes
                 n2 = read(io, UInt32)
-                read_reals(io, UInt8, n2)
-                read(io, UInt64) # 8 bytes
+                skip(io, n2 + 8)
                 widthbytes = read(io, UInt8)
                 maxwidth = read(io, UInt32)
                 widthtype = widthbytes == 0x01 ? Int8 : widthbytes == 0x02 ? Int16 : widthbytes == 0x04 ? Int32 : throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
@@ -141,6 +154,11 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         end
     end
 
-    @error("Data type combination `(dt1,dt2,dt3,dt4,dt5)=$dt1,$dt2,$dt3,$dt4,$dt5` not implemented, found in column `$(info.column.names[i])` (i=$i), returning a vector of NaN's")
+    # row states
+    if dt1 == dt2 && dt1 == 0x03
+        @warn("row state not implemented")
+    end
+
+    @error("Data type combination `(dt1,dt2,dt3,dt4,dt5,dt6)=$dt1,$dt2,$dt3,$dt4,$dt5,$dt6` not implemented, found in column `$(info.column.names[i])` (i=$i), returning a vector of NaN's")
     return fill(NaN, info.nrows)
 end

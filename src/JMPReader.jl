@@ -1,8 +1,13 @@
+"""
+    JMPReader
+
+Reader for JMP data tables. Exports `readjmp`.
+"""
 module JMPReader
 
 export readjmp
 
-using Dates: unix2datetime, Date, DateTime
+using Dates: unix2datetime, DateTime, Date, Time
 using DataFrames: DataFrame, select!, insertcols!
 using CodecZlib: transcode, GzipDecompressor
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
@@ -24,6 +29,13 @@ Read a JMP file.
 
 Included and excluded columns can be defined using keyword arguments `include_columns` and `exclude_columns`.
 These are vectors defining columns with any combination of `Integer`, `OrdinalRange`, `String`, `Symbol`, `Regex`.
+
+## Example
+```
+using JMPReader
+fn = joinpath(pathof(JMPReader), "..", "..", "test", "example1.jmp")
+df = readjmp(fn)
+```
 """
 function readjmp(fn::AbstractString;
     include_columns::Union{Nothing, Vector} = nothing,
