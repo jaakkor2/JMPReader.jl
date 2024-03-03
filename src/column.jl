@@ -11,6 +11,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     columnname = _read_string!(io, 2)
     lenname = length(columnname)
     dt1, dt2, dt3, dt4, dt5, dt6 = read_reals(io, UInt8, 6)
+#@show i, columnname, dt1, dt2, dt3, dt4, dt5, dt6
     mark(io)
 
     # compressed
@@ -111,8 +112,15 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         return out
     end
 
+    # row states
+    if dt2 == 0x03
+        @warn("row state not implemented")
+    end
+
+
     # character
-    if dt1 in [0x02, 0x09]
+    if dt1 in [0x02, 0x09] && dt2 in  [0x01, 0x02]
+
         # constant width
         if ([dt3, dt4] == [0x00, 0x00] && dt5 > 0) ||
             (0x01 ≤ dt3 ≤ 0x07 && dt4 == 0x00)
@@ -154,10 +162,6 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         end
     end
 
-    # row states
-    if dt1 == dt2 && dt1 == 0x03
-        @warn("row state not implemented")
-    end
 
     @error("Data type combination `(dt1,dt2,dt3,dt4,dt5,dt6)=$dt1,$dt2,$dt3,$dt4,$dt5,$dt6` not implemented, found in column `$(info.column.names[i])` (i=$i), returning a vector of NaN's")
     return fill(NaN, info.nrows)

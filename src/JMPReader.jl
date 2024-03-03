@@ -21,6 +21,7 @@ include("constants.jl")
 include("utils.jl")
 include("metadata.jl")
 include("column.jl")
+include("test.jl")
 
 """
     function readjmp(fn::AbstractString; include_columns::Union{Nothing, Vector} = nothing; exclude_columns::Union{Nothing, Vector} = nothing)
