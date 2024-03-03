@@ -39,6 +39,9 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     if dt1 in [0x01, 0x0a]
         T = dt6 == 0x01 ? Int8 : dt6 == 0x02 ? Int16 : dt6 == 0x04 ? Int32 : Float64
         out = reinterpret(T, @view a[end-dt6*info.nrows+1:end])
+        if !isnothing(findfirst(isnan, out))
+            out = replace(out, NaN => missing) # materialize
+        end
 
         # Float64 or byte integers
         if  (dt4 == dt5 && dt4 in [
@@ -46,11 +49,21 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
             ]) ||
             dt5 in [0x5e, 0x63] # fixed dec, dt3=width, dt4=dec
 
-            if !isnothing(findfirst(isnan, out))
-                out = replace(out, NaN => missing) # materialize
-            end
             return out
         end
+        # Currency
+        if dt4 == dt5 && dt4 in [0x5f]
+            return out
+        end
+        # Longitude
+        if dt4 == dt5 && dt4 in [0x54, 0x55, 0x56]
+            return out
+        end
+        # Latitude
+        if dt4 == dt5 && dt4 in [0x51, 0x52, 0x53]
+            return out
+        end
+        
         # then it is a date, time or duration
         out = to_datetime(out)
         # Date
@@ -77,7 +90,6 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
 
             return [ismissing(x) ? missing : Time(x) for x in out]
         end
-
         # Duration
         if dt4 == dt5 && dt4 in [
             0x0c, 0x6b, 0x6c, 0x6d, 0x83, 0x84, 0x85
@@ -85,18 +97,6 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
             [dt4, dt5] in [[0x84, 0x79]]
 
             return [ismissing(x) ? missing : DateTime(x) - JMP_STARTDATE for x in out]
-        end
-        # Currency
-        if dt4 == dt5 && dt4 in [0x5f]
-            @warn("currency not implemented")
-        end
-        # Longitude
-        if dt4 == dt5 && dt4 in [0x54, 0x55]
-            @warn("longitude not implemented")
-        end
-        # Latitude
-        if dt4 == dt5 && dt4 in [0x51, 0x52]
-            @warn("latitude not implemented")
         end
     end
 

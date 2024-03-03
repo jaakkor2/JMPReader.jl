@@ -24,8 +24,8 @@ end
 Convert a of `Float64`s to a vector of `DateTime`s.
 JMP uses the 1904 date system, correct for that.
 """
-function to_datetime(floats::AbstractVector{Float64})
-    dt = [isnan(float) ? missing : unix2datetime(float) for float in floats]
+function to_datetime(floats::AbstractVector{T}) where T <: Union{Missing,Float64}
+    dt = [ismissing(float) ? missing : unix2datetime(float) for float in floats]
     dt .- (unix2datetime(0) - JMP_STARTDATE)
 end
 

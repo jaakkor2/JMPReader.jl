@@ -101,3 +101,16 @@ end
     @test df.numeric[2] == 2147483648
     @test all(ismissing, df.numeric[[1,3,4]])
 end
+
+@testset "geographic" begin
+    df = readjmp("geographic.jmp")
+    @test all(isapprox.(df.Longitude_DDD, [151.209900,24.945831,-122.449]))
+    @test ismissing(df.Latitude_DDD[2])
+    @test ismissing(df.Latitude_DMM[3])
+end
+
+@testset "currencies" begin
+    df = readjmp("currencies.jmp")
+    @test all(isapprox.(df.AUD, [1.0,2.0,2.0]))
+    @test all(isapprox.(df.COP, [3.14,2.78,1.41]))
+end
