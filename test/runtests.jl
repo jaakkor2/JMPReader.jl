@@ -3,6 +3,7 @@ using JMPReader
 using Dates: Date, DateTime, Second
 using Printf: @sprintf
 using DataFrames: names
+using Colors: RGB, FixedPointNumbers.N0f8
 
 @testset "example1.jmp" begin
     df = readjmp(joinpath(@__DIR__, "example1.jmp"))
@@ -113,4 +114,11 @@ end
     df = readjmp("currencies.jmp")
     @test all(isapprox.(df.AUD, [1.0,2.0,2.0]))
     @test all(isapprox.(df.COP, [3.14,2.78,1.41]))
+end
+
+@testset "row states" begin
+    df = readjmp("rowstate.jmp")
+    @test df.rowstate3[2].marker == '▲'
+    @test df.rowstate3[3].marker == 'ꙮ'
+    @test df.rowstate2[3].color == RGB{N0f8}(0.753,0.753,0.753)
 end

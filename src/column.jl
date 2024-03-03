@@ -113,10 +113,29 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     end
 
     # row states
-    if dt2 == 0x03
-        @warn("row state not implemented")
+    if dt1 == 0x09 && dt2 == 0x03
+        width = dt5
+        rs = Rowstate[]
+        for row in 1:info.nrows
+            offset = width*(row - 1)
+            markeridx = bitcat(a[offset + 7], a[offset + 6])
+            marker = markeridx ≤ 0x001f ? rowstatemarkers[markeridx + 1] : Char(markeridx)
+            if a[offset+4] == 0xff
+                r, g, b = 255 - a[offset + 3], 255 - a[offset + 2], 256 - a[offset + 1]
+                color = parse(Colorant, "rgb($r,$g,$b)") # TODO improve
+            else
+                color = parse(Colorant, rowstatecolors[a[offset + 1] + 1])
+            end
+            push!(rs, Rowstate(marker, color))
+        end
+        return rs
     end
-
+    if dt1 == 0x03 && dt2 == 0x03
+        width = dt5
+        T = Int64
+        out = reinterpret(T, @view a[end - width*info.nrows+1:end])
+        return out
+    end
 
     # character
     if dt1 in [0x02, 0x09] && dt2 in  [0x01, 0x02]
@@ -161,7 +180,6 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
             return str
         end
     end
-
 
     @error("Data type combination `(dt1,dt2,dt3,dt4,dt5,dt6)=$dt1,$dt2,$dt3,$dt4,$dt5,$dt6` not implemented, found in column `$(info.column.names[i])` (i=$i), returning a vector of NaN's")
     return fill(NaN, info.nrows)

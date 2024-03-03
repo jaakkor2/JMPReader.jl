@@ -7,14 +7,15 @@ module JMPReader
 
 export readjmp
 
-using Dates: unix2datetime, DateTime, Date, Time
-using DataFrames: DataFrame, select!, insertcols!
-using CodecZlib: transcode, GzipDecompressor
-using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
-using WeakRefStrings: StringVector
 using Base.Threads: nthreads, @spawn, threadid
 using Base.Iterators: partition
+using CodecZlib: transcode, GzipDecompressor
+using Colors: RGB, Colorant, FixedPointNumbers.N0f8
+using DataFrames: DataFrame, select!, insertcols!
+using Dates: unix2datetime, DateTime, Date, Time
+using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 using Mmap: mmap
+using WeakRefStrings: StringVector
 
 include("types.jl")
 include("constants.jl")

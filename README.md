@@ -1,6 +1,6 @@
 # JMPReader.jl
 
-Reader for JMP data tables.
+Reader for JMP data tables.  [JMP](https://en.wikipedia.org/wiki/JMP_(statistical_software)) is proprietary statistical software.
 
 ## Example
 ```

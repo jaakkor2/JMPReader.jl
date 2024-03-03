@@ -12,3 +12,8 @@ struct Info
     ncols::Int32
     column::Column
 end
+
+struct Rowstate
+    marker::Char
+    color::RGB{N0f8}
+end
