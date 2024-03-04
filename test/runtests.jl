@@ -3,7 +3,7 @@ using JMPReader
 using Dates: Date, DateTime, Second
 using Printf: @sprintf
 using DataFrames: names
-using Colors: RGB, FixedPointNumbers.N0f8
+using ColorTypes: RGB, FixedPointNumbers.N0f8
 
 @testset "example1.jmp" begin
     df = readjmp(joinpath(@__DIR__, "example1.jmp"))

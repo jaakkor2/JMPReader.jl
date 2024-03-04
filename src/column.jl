@@ -11,7 +11,6 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     columnname = _read_string!(io, 2)
     lenname = length(columnname)
     dt1, dt2, dt3, dt4, dt5, dt6 = read_reals(io, UInt8, 6)
-#@show i, columnname, dt1, dt2, dt3, dt4, dt5, dt6
     mark(io)
 
     # compressed
@@ -117,15 +116,15 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         width = dt5
         rs = Rowstate[]
         for row in 1:info.nrows
-            offset = width*(row - 1)
+            offset = width * (row - 1)
             markeridx = bitcat(a[offset + 7], a[offset + 6])
             marker = markeridx ≤ 0x001f ? rowstatemarkers[markeridx + 1] : Char(markeridx)
-            if a[offset+4] == 0xff
-                r, g, b = 255 - a[offset + 3], 255 - a[offset + 2], 256 - a[offset + 1]
-                color = parse(Colorant, "rgb($r,$g,$b)") # TODO improve
+            if a[offset + 4] == 0xff
+                r, g, b = nor(a[offset + 3]), nor(a[offset + 2]), nor(a[offset + 1])
             else
-                color = parse(Colorant, rowstatecolors[a[offset + 1] + 1])
+                r, g, b = hex2bytes(lstrip(rowstatecolors[a[offset + 1] + 1], '#'))
             end
+            color = RGB(r / 255, g / 255, b / 255)
             push!(rs, Rowstate(marker, color))
         end
         return rs
