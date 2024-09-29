@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+JMPReader = "d9f7e686-cf87-4d12-8d7a-0e9b8c9fba29"
+
+[compat]
+Documenter = "1"
