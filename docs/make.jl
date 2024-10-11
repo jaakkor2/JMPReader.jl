@@ -2,17 +2,15 @@ using Documenter
 using JMPReader
 
 DocMeta.setdocmeta!(JMPReader, :DocTestSetup, :(using JMPReader); recursive = true)
+const IS_CI = get(ENV, "CI", "false") == "true"
 
 makedocs(
     modules = [JMPReader],
     authors = "Jaakko Ruohio",
     sitename = "JMPReader Documentation",
     format = Documenter.HTML(
-		prettyurls = false,
-        disable_git = false,
+		prettyurls = IS_CI,
         canonical = "https://jaakkor2.github.io/JMPReader.jl",
-        edit_link = "master",
-        repolink = "https://github.com/jaakkor2/JMPReader.jl"
         ),
     warnonly = [:docs_block, :missing_docs, :cross_references],
 #    remotes = nothing,
@@ -23,9 +21,8 @@ makedocs(
         ],
     )
 
-deploydocs(;
+IS_CI && deploydocs(;
     repo = "github.com/jaakkor2/JMPReader.jl",
-    devbranch = "master",
     )
 
 nothing
