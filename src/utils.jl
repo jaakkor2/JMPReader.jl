@@ -98,3 +98,18 @@ end
 
 # https://discourse.julialang.org/t/newbie-question-convert-two-8-byte-values-into-a-single-16-byte-value/7662/4?u=jaakkor2
 bitcat(a::UInt8, b::UInt8) = (UInt16(a) << 8) | b
+
+function sentinel2missing(data)
+    T = eltype(data)
+    if T == Float64
+        sentinel = NaN
+        eq = isnan
+    else
+        sentinel = typemin(T) + 1
+        eq = ==(sentinel)
+    end
+    if !isnothing(findfirst(eq, data))
+        data = replace(data, sentinel => missing) # materialize
+    end
+    data
+end
