@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
     tags: ['*']
   pull_request:
   workflow_dispatch:
@@ -73,6 +73,6 @@ jobs:
         shell: julia --project=docs --color=yes {0}
         run: |
           using Documenter: DocMeta, doctest
-          using Foolio
-          DocMeta.setdocmeta!(JMPReader, :DocTestSetup, :(using Foolio); recursive=true)
-          doctest(Foolio)
+          using JMPReader
+          DocMeta.setdocmeta!(JMPReader, :DocTestSetup, :(using JMPReader); recursive=true)
+          doctest(JMPReader)
