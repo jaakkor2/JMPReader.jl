@@ -35,7 +35,7 @@ function check_magic(io)
 end
 
 function to_str(buffer, n, lengths::AbstractVector)
-    str = StringVector{String}(buffer, n)
+    str = StringVector{String}(buffer, Int(n))
     str.lengths .= lengths
     offset = UInt64(0)
     @inbounds for i in 1:n
