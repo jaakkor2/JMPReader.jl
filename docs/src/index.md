@@ -1,4 +1,10 @@
-# JMPReader.jl Documentation
+```@meta
+CurrentModule = JMPReader
+```
+
+# JMPReader
+
+Documentation for [JMPReader](https://github.com/jaakkor2/JMPReader.jl).
 
 [JMP](https://en.wikipedia.org/wiki/JMP_(statistical_software)) is commercial statistical software.  This package provides an independent reader for `.jmp` files
 implemented in Julia.
