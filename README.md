@@ -1,5 +1,8 @@
 # JMPReader.jl
-[![Stable docs][stable-img]][stable-url] [![Dev docs][dev-img]][dev-url]
+
+[![][docs-stable-img]][docs-stable-url]
+[![][docs-main-img]][docs-main-url]
+[![Build Status](https://github.com/jaakkor2/JMPReader.jl/workflows/CI/badge.svg)](https://github.com/jaakkor2/JMPReader.jl/actions?query=workflows/CI)
 
 Reader for JMP data tables.  [JMP](https://en.wikipedia.org/wiki/JMP_(statistical_software)) is proprietary statistical software.
 
