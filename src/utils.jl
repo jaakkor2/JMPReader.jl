@@ -46,7 +46,7 @@ function to_str(buffer, n, lengths::AbstractVector)
 end
 
 function to_str(buffer, n, length::Integer)
-    str = StringVector{String}(buffer, n)
+    str = StringVector{String}(buffer, Int(n))
     str.lengths .= length
     offset = UInt64(0)
     @inbounds for i in 1:n
