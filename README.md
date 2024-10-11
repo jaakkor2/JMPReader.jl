@@ -1,5 +1,9 @@
 # JMPReader.jl
 
+[![Stable docs][docs-stable-img]][docs-stable-url]
+[![Dev docs][docs-dev-img]][docs-dev-url]
+[![Build Status][ci-img]][ci]
+
 Reader for JMP data tables.  [JMP](https://en.wikipedia.org/wiki/JMP_(statistical_software)) is proprietary statistical software.
 
 ## Example
@@ -19,3 +23,10 @@ outputs
    3 │    3     33.3  c               2003-06-02T17:00:00  missing     229000 milliseconds   ccc              cccccccc                           6              2.6          jäääär     cc
    4 │    4     44.4  d               missing              2032-02-12  0 milliseconds        dddd             abcdefghijabcdefghijabcdefghijab…  8              4.63309e110  辛口       abcdefghijkl
 ```
+
+[docs-stable-url]: https://jaakkor2.github.io/JMPReader.jl/stable/
+[docs-stable-img]: https://img.shields.io/badge/Docs-Stable-lightgrey.svg
+[docs-dev-url]: https://jaakkor2.github.io/JMPReader.jl/dev/
+[docs-dev-img]: https://img.shields.io/badge/Docs-Dev-blue.svg
+[ci]: https://github.com/jaakkor2/JMPReader.jl/actions?query=workflows/CI
+[ci-img]: https://github.com/jaakkor2/JMPReader.jl/workflows/CI/badge.svg

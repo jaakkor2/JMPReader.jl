@@ -23,6 +23,7 @@ makedocs(
 
 IS_CI && deploydocs(;
     repo = "github.com/jaakkor2/JMPReader.jl",
+    push_preview = true,
     )
 
 nothing
