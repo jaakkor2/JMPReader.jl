@@ -39,9 +39,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     if dt1 in [0x01, 0x0a]
         T = dt6 == 0x01 ? Int8 : dt6 == 0x02 ? Int16 : dt6 == 0x04 ? Int32 : Float64
         out = reinterpret(T, @view a[end-dt6*info.nrows+1:end])
-        if !isnothing(findfirst(isnan, out))
-            out = replace(out, NaN => missing) # materialize
-        end
+        out = sentinel2missing(out)
 
         # Float64 or byte integers
         if  (dt4 == dt5 && dt4 in [
@@ -104,10 +102,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     if dt1 in [0xff, 0xfe, 0xfc]
         T = dt5 == 0x01 ? Int8 : dt5 == 0x02 ? Int16 : dt5 == 0x04 ? Int32 : Float64
         out = reinterpret(T, @view a[end-dt5*info.nrows+1:end])
-        missingvalue = typemin(T) + 1
-        if !isnothing(findfirst(==(missingvalue), out))
-            out = replace(out, missingvalue => missing) # materialize
-        end
+        out = sentinel2missing(out)
         return out
     end
 

@@ -89,6 +89,14 @@ end
     @test df."2-byte integer" == Int16[-187,-30,-18,13,-55]
     @test df."4-byte integer" == Int32[-28711,-16887,-26063,13093,-44761]
 
+    df = readjmp("byteintegers_withmissing.jmp")
+    @test eltype(df."1-byte integer") == Union{Missing, Int8}
+    @test eltype(df."2-byte integer") == Union{Missing, Int16}
+    @test eltype(df."4-byte integer") == Union{Missing, Int32}
+    @test isequal(df."1-byte integer", Union{Missing, Int8}[0,1,0,1,0,missing])
+    @test isequal(df."2-byte integer", Union{Missing, Int16}[-187,-30,-18,13,-55,missing])
+    @test isequal(df."4-byte integer", Union{Missing, Int32}[-28711,-16887,-26063,13093,-44761,missing])
+
     df = readjmp("byteintegers_notcompressed.jmp")
     @test eltype(df.onebyte) == Int8
     @test eltype(df.twobyte) == Union{Missing,Int16}
