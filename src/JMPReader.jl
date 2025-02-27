@@ -50,21 +50,26 @@ function readjmp(fn::AbstractString;
 
     colinds = filter_columns(info.column.names, include_columns, exclude_columns)
 
-    df = DataFrame()
-    deflatebuffers = [Vector{UInt8}() for i = 1:Threads.nthreads()]
     close(io)
-    ios = [open(fn) for i = 1:Threads.nthreads()]
+    
+    df = DataFrame()
     lk = ReentrantLock()
-    Threads.@threads :static for i in colinds
-        data = column_data(ios[threadid()], info, i, deflatebuffers[threadid()])
-        lock(lk) do
-            insertcols!(df, info.column.names[i] => data)
+    chunk_size = max(1, length(colinds) ÷ Threads.nthreads())
+    chunks = Iterators.partition(colinds, chunk_size)
+    @sync tasks = map(chunks) do chunk
+        Threads.@spawn begin
+            deflatebuffer = Vector{UInt8}()
+            open(fn) do ios
+                for i in chunk
+                    data = column_data(ios, info, i, deflatebuffer)
+                    lock(lk) do
+                        insertcols!(df, info.column.names[i] => data)
+                    end
+                end
+            end
         end
     end
     select!(df, info.column.names[colinds])
-    for io in ios
-        close(io)
-    end
 
     return df
 end
