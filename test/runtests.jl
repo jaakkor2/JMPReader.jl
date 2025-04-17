@@ -75,9 +75,9 @@ end
     @test JMPReader.filter_columns(names, ["foo_x", :baz, r"^bar", 3, 1:2], [4, r"x$"]) == [1,3,6,7]
 end
 
-@testset "include/exclude columns" begin
-    @test names(readjmp("time.jmp", include_columns = [1,3:2:5,"ddMonyyyy h:m"])) == ["m-d-y h:m", "d-m-y h:m", "y-m-d h:m", "ddMonyyyy h:m"]
-    @test names(readjmp("time.jmp", exclude_columns = [r"d"])) == ["h:m:s", "h:m", "Locale Date Time h:m", "Locale Date Time h:m:s"]
+@testset "select/drop columns" begin
+    @test names(readjmp("time.jmp", select = [1,3:2:5,"ddMonyyyy h:m"])) == ["m-d-y h:m", "d-m-y h:m", "y-m-d h:m", "ddMonyyyy h:m"]
+    @test names(readjmp("time.jmp", drop = [r"d"])) == ["h:m:s", "h:m", "Locale Date Time h:m", "Locale Date Time h:m:s"]
 end
 
 @testset "byte integers" begin

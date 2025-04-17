@@ -1,13 +1,14 @@
 name = "JMPReader"
 uuid = "d9f7e686-cf87-4d12-8d7a-0e9b8c9fba29"
-version = "0.1.14"
 authors = ["Jaakko Ruohio <jaakkor2@gmail.com>"]
+version = "0.1.15"
 
 [deps]
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+DeprecateKeywords = "83f0f1bf-2a81-4f2a-8178-033dcab3e60b"
 LibDeflate = "9255714d-24a7-4b30-8ea3-d46a97f7e13b"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 WeakRefStrings = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
@@ -17,6 +18,7 @@ CodecZlib = "0.7"
 ColorTypes = "0.11.4, 0.12"
 DataFrames = "1"
 Dates = "1.6"
+DeprecateKeywords = "0.4"
 LibDeflate = "0.4"
 Mmap = "1"
 Printf = "1"

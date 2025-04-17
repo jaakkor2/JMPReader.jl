@@ -72,13 +72,13 @@ function rstripnull!(s::StringVector)
     nothing
 end
 
-function filter_columns(names, include_columns, exclude_columns)
+function filter_columns(names, select, drop)
     cols = 1:length(names)
-    if !isnothing(include_columns)
-        cols = intersect(cols, filter_names(names, include_columns))
+    if !isnothing(select)
+        cols = intersect(cols, filter_names(names, select))
     end
-    if !isnothing(exclude_columns)
-        cols = setdiff(cols, filter_names(names, exclude_columns))
+    if !isnothing(drop)
+        cols = setdiff(cols, filter_names(names, drop))
     end
     cols = sort(cols)
     return cols

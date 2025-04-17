@@ -31,9 +31,9 @@ to read file `fn` and get the data as a Julia `DataFrame`.  All columns are incl
 
 ## Choosing columns
 
-Two keyword arguments are available, `include_columns` and `exclude_columns`
+Two keyword arguments are available, `select` and `drop`
 ```
-df = readjmp(fn, include_columns=[2, "date", r"^char"], exclude_columns=[r"varia"])
+df = readjmp(fn, select=[2, "date", r"^char"], drop=[r"varia"])
 ``` 
 returns the second column `floats`, a column named `date`, columns that start with `char`,
 but excluding columns whose name contain a string `varia`.
