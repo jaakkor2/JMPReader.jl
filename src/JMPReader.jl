@@ -16,6 +16,7 @@ using Dates: unix2datetime, DateTime, Date, Time
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 using Mmap: mmap
 using WeakRefStrings: StringVector
+using DeprecateKeywords
 
 include("types.jl")
 include("constants.jl")
@@ -25,11 +26,11 @@ include("column.jl")
 include("test.jl")
 
 """
-    function readjmp(fn::AbstractString; include_columns::Union{Nothing, Vector} = nothing; exclude_columns::Union{Nothing, Vector} = nothing)
+    function readjmp(fn::AbstractString; select::Union{Nothing, Vector} = nothing; drop::Union{Nothing, Vector} = nothing)
 
 Read a JMP file.
 
-Included and excluded columns can be defined using keyword arguments `include_columns` and `exclude_columns`.
+Included and excluded columns can be defined using keyword arguments `select` and `drop`.
 These are vectors defining columns with any combination of `Integer`, `OrdinalRange`, `String`, `Symbol`, `Regex`.
 
 ## Example
@@ -39,16 +40,18 @@ fn = joinpath(pathof(JMPReader), "..", "..", "test", "example1.jmp")
 df = readjmp(fn)
 ```
 """
-function readjmp(fn::AbstractString;
-    include_columns::Union{Nothing, Vector} = nothing,
-    exclude_columns::Union{Nothing, Vector} = nothing)
-
+@depkws function readjmp(fn::AbstractString;
+    select::Union{Nothing, Vector} = nothing,
+    drop::Union{Nothing, Vector} = nothing,
+    @deprecate(include_columns, select),
+    @deprecate(exclude_columns, drop),
+    )
     isfile(fn) || throw(ArgumentError("\"$fn\" does not exist"))
     io = open(fn)
     check_magic(io) || (close(io); throw(ArgumentError("Data table appears to have been corrupted, or `$fn` is not a .jmp file.")))
     info = metadata(io)
 
-    colinds = filter_columns(info.column.names, include_columns, exclude_columns)
+    colinds = filter_columns(info.column.names, select, drop)
 
     close(io)
     
