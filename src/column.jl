@@ -132,7 +132,7 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
     end
 
     # character
-    if dt1 in [0x02, 0x09] && dt2 in  [0x01, 0x02]
+    if dt1 in [0x02, 0x09] && dt2 in [0x01, 0x02]
 
         # constant width
         if ([dt3, dt4] == [0x00, 0x00] && dt5 > 0) ||
@@ -146,15 +146,37 @@ function column_data(io, info, i::Int, deflatebuffer::Vector{UInt8})
         # variable width
         if [dt3, dt4, dt5] == [0x00, 0x00, 0x00]
             if dt1 == 0x09 # compressed
-                widthbytes = a[9]
-                if widthbytes == 1
-                    widths = reinterpret(Int8, @view a[13 .+ (1:info.nrows)])
-                    data = a[13 + info.nrows + 1:end]
-                elseif widthbytes == 2
-                    widths = reinterpret(Int16, @view a[13 .+ (1:2*info.nrows)])
-                    data = a[13 + 2*info.nrows + 1:end]
+                if reinterpret(Int64, a[1:8])[1] == length(a) # pooled data
+                    io2 = IOBuffer(a)
+                    reclen = read(io2, Int64)
+                    foo = read(io2, 9)
+                    foo2 = read(io2, Int64)
+                    # indices to pool
+                    wb = read(io2, Int8)
+                    T = wb == 1 ? Int8 : Int16
+                    idx = [read(io2, T) for _ in 1:info.nrows]
+                    # pool
+                    npools = maximum(idx)
+                    wb = read(io2, Int8)
+                    T = wb == 1 ? Int8 : wb == 2 ? Int16 : error()
+                    pool = []
+                    for i = 1:npools
+                        n = read(io2, T)
+                        push!(pool, String(read(io2, n)))
+                    end
+                    str = [idx == 0 ? "" : pool[idx] for idx in idx]
+                    return str
                 else
-                    throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
+                    widthbytes = a[9]
+                    if widthbytes == 1
+                        widths = reinterpret(Int8, @view a[13 .+ (1:info.nrows)])
+                        data = a[13 + info.nrows + 1:end]
+                    elseif widthbytes == 2
+                        widths = reinterpret(Int16, @view a[13 .+ (1:2*info.nrows)])
+                        data = a[13 + 2*info.nrows + 1:end]
+                    else
+                        throw(ErrorException("Unknown `widthbytes=$widthbytes`, some offset is wrong somewhere, column i=$i"))
+                    end
                 end
             else # uncompressed
                 # continue after dt1,...,dt6 were read
