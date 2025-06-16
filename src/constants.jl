@@ -8,9 +8,6 @@ const GZIP_SECTION_START = [0xef, 0xbe, 0xfe, 0xca] # cafebeef
 # JMP uses 1904 date system
 const JMP_STARTDATE = DateTime(1904, 1, 1)
 
-# offset for number of rows
-const OFFSET_NROWS = 368
-
 # row state
 const rowstatemarkers = [
     '•', '+', 'X', '□',

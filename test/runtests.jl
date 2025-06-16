@@ -130,3 +130,16 @@ end
     @test df.rowstate3[3].marker == 'ꙮ'
     @test df.rowstate2[3].color == RGB{N0f8}(0.753,0.753,0.753)
 end
+
+@testset "compact subtype" begin
+    df = readjmp("compact.jmp")
+    data = ["aa", "b", "ccc", "dd", "dd"]
+    @test df.normalsubtype == data
+    @test df.compactsubtype == data
+    @test df.longcompact[1] == repeat('x', 254)
+    @test df.longcompact[2] == repeat('y', 255)
+    @test isempty(df.longcompact[3])
+    z = repeat('z', 256)
+    @test df.longcompact[4] == z
+    @test df.longcompact[5] == z
+end

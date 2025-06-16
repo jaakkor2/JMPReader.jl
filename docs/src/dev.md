@@ -11,11 +11,15 @@ For example,
 ```julia
 JMPReader.scandir(joinpath(pathof(JMPReader), "..", "..", "test"))
 ```
-reads 12 JMP-files, and
+reads 12 JMP-files,
 ```julia
 JMPReader.scandir(raw"C:\Program Files\SAS\JMPPRO\17\Samples\Data")
 ```
-reads successfully 605 JMP-files.
+reads successfully 605 JMP-files, and
+```julia
+JMPReader.scandir(raw"C:\Program Files\JMP\JMPPRO\18\Samples\Data")
+```
+reads successfully 612 JMP-files.
 
 ## Looking into the binary .jmp file
 

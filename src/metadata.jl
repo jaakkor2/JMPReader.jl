@@ -1,5 +1,9 @@
 function metadata(io)
-    seek(io, OFFSET_NROWS)
+    seekstart(io)
+    seq = [0x07, 0x00, 0x08, 0x00, 0x00, 0x00]
+    readuntil(io, seq)
+    seek(io, position(io) - 38)
+
     nrows = read(io, Int64)
     ncols = read(io, Int32)
     foo1 = read_reals(io, Int16, 5) # ??
