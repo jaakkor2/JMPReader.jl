@@ -73,6 +73,8 @@ end
     @test JMPReader.filter_columns(names, nothing, [r"_x$", :bar]) == [1,3,6,7]
     @test JMPReader.filter_columns(names, [3:10], [10:-3:1]) == [3,5,6]
     @test JMPReader.filter_columns(names, ["foo_x", :baz, r"^bar", 3, 1:2], [4, r"x$"]) == [1,3,6,7]
+
+    @test JMPReader.filter_names(names, ["foo_x", "foo_z", :bar, :bar_z]) == [2,4]
 end
 
 @testset "select/drop columns" begin

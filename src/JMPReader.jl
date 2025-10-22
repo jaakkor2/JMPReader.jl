@@ -16,7 +16,6 @@ using Dates: unix2datetime, DateTime, Date, Time
 using LibDeflate: gzip_decompress!, Decompressor, LibDeflateErrors, LibDeflateErrors.deflate_insufficient_space
 using Mmap: mmap
 using WeakRefStrings: StringVector
-using DeprecateKeywords
 
 include("types.jl")
 include("constants.jl")
@@ -40,12 +39,11 @@ fn = joinpath(pathof(JMPReader), "..", "..", "test", "example1.jmp")
 df = readjmp(fn)
 ```
 """
-@depkws function readjmp(fn::AbstractString;
+function readjmp(fn::AbstractString;
     select::Union{Nothing, Vector} = nothing,
     drop::Union{Nothing, Vector} = nothing,
-    @deprecate(include_columns, select),
-    @deprecate(exclude_columns, drop),
     )
+
     isfile(fn) || throw(ArgumentError("\"$fn\" does not exist"))
     io = open(fn)
     check_magic(io) || (close(io); throw(ArgumentError("Data table appears to have been corrupted, or `$fn` is not a .jmp file.")))
