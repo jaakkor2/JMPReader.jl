@@ -89,8 +89,8 @@ function filter_names(names, rules)
     for rule in rules
         isa(rule, Integer) && push!(idx, rule)
         isa(rule, OrdinalRange) && append!(idx, rule)
-        isa(rule, String) && push!(idx, findfirst(==(rule), names))
-        isa(rule, Symbol) && push!(idx, findfirst(==(String(rule)), names))
+        isa(rule, String) && findfirst(==(rule), names) |> i -> isnothing(i) ? nothing : push!(idx, i)
+        isa(rule, Symbol) && findfirst(==(String(rule)), names) |> i -> isnothing(i) ? nothing : push!(idx, i)
         isa(rule, Regex) && append!(idx, findall(contains.(names, rule)))
     end
     return idx
