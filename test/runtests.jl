@@ -157,3 +157,8 @@ end
     @test size(df) == (65537, 1)
     @test df.A[end] == "a65537"
 end
+
+@testset "minusfour" begin
+    df = readjmp("minusfour.jmp")
+    @test df."Column 1" == ["a", "b", "c"]
+end
