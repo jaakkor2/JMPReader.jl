@@ -37,7 +37,7 @@ function column_info(io, ncols)
     while true
         twobytes = read(io, 2)
         # TODO below is not correct since number of column (UInt32) might match with the two bytes listed below.
-        if twobytes in [[0xfd, 0xff], [0xfe, 0xff], [0xff, 0xff]] # ?? hacky
+        if twobytes in [[0xfc, 0xff], [0xfd, 0xff], [0xfe, 0xff], [0xff, 0xff]] # ?? hacky
             n = read(io, Int64)
             read_reals(io, UInt8, n)
         else
