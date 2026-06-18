@@ -162,3 +162,11 @@ end
     df = readjmp("minusfour.jmp")
     @test df."Column 1" == ["a", "b", "c"]
 end
+
+@testset "bugMWE4" begin
+    df = readjmp("bugMWE4.jmp")
+    @test df.c[1:3] == ["cat", "cat", "dolor sit amet"]
+    @test df.d[1:3] == ["bat", "bat", "consectetur adipiscing elit"]
+    @test df.e[1:3] == ["bird", "bird", "sed do eiusmod"]
+    @test df.f[16:18] == ["foo", "bar", "hello world"]
+end
