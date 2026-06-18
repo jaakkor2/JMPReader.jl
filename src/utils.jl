@@ -53,21 +53,25 @@ function to_str(buffer, n, length::Integer)
         str.offsets[i] = offset
         offset += length
     end
-    rstripnull!(str)
+    truncate_at_null!(str)
     str
 end
 
 """
-    rstripnull!(strs::StringVector)
+    truncate_at_null!(strs::StringVector)
 
-Remove trailing nulls from `strs`.
+Truncate StringVector at first null.
 """
-function rstripnull!(s::StringVector)
+function truncate_at_null!(s::StringVector)
     @inbounds for (i, (length, offset)) in enumerate(zip(s.lengths, s.offsets))
-        while s.buffer[offset + length] == 0x00 && length > 0
-            length -= 1
+        new_length = length
+        for j in 1:length
+            if s.buffer[offset + j] == 0x00
+                new_length = j - 1
+                break
+            end
         end
-        s.lengths[i] = length
+        s.lengths[i] = new_length
     end
     nothing
 end
