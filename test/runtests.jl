@@ -47,7 +47,8 @@ end
 
 @testset "time.jmp" begin
     df = readjmp(joinpath(@__DIR__, "time.jmp"))
-    @test Matrix(df) == repeat([DateTime(1914,4,27,19,54,14), DateTime(1978,1,7,6,11,24)], 1, 20)
+    # skip columns 13 and 14:  ":day:hr:m", ":day:hr:m:s" are considered to be duration
+    @test Matrix(df[!,[1:12;15:20]]) == repeat([DateTime(1914,4,27,19,54,14), DateTime(1978,1,7,6,11,24)], 1, 18)
 end
 
 @testset "longcolumnnames.jmp" begin
