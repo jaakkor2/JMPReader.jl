@@ -46,7 +46,11 @@ function readjmp(fn::AbstractString;
 
     isfile(fn) || throw(ArgumentError("\"$fn\" does not exist"))
     io = open(fn)
-    check_magic(io) || (close(io); throw(ArgumentError("Data table appears to have been corrupted, or `$fn` is not a .jmp file.")))
+    read(io, length(MAGIC_JMP)) == MAGIC_JMP  || (close(io); throw(ArgumentError("Data table appears to have been corrupted, or `$fn` is not a .jmp file.")))
+    version = read(io, UInt32), read(io, UInt32), read(io, UInt32)
+    version == (0x00000003, 0x00000004, 0x00000003) && (close(io); throw(ArgumentError("Old unsupported JMP file format.")))
+    version == (0x00000007, 0x00000004, 0x00010001) || (close(io); throw(ArgumentError("Unknown JMP file format.")))
+    
     info = metadata(io)
 
     colinds = filter_columns(info.column.names, select, drop)

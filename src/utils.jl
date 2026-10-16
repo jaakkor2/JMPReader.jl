@@ -29,11 +29,6 @@ function to_datetime(floats::AbstractVector{T}) where T <: Union{Missing,Float64
     dt .- (unix2datetime(0) - JMP_STARTDATE)
 end
 
-function check_magic(io)
-    magic = read(io, length(MAGIC_JMP))
-    magic == MAGIC_JMP
-end
-
 function to_str(buffer, n, lengths::AbstractVector)
     str = StringVector{String}(buffer, Int(n))
     str.lengths .= lengths
